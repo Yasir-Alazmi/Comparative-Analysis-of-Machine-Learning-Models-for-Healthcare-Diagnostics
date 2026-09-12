@@ -31,3 +31,7 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics"
 Repository = "https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

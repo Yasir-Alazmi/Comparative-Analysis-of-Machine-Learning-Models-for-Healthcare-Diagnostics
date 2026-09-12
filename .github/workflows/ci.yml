@@ -27,7 +27,11 @@ jobs:
           pip install pytest
 
       - name: Run Pytest Suite
-        run: pytest tests/ -v --tb=short
+        env:
+          PYTHONPATH: .
+        run: python -m pytest tests/ -v --tb=short
 
       - name: Run Smoke Benchmark Test
+        env:
+          PYTHONPATH: .
         run: python run_benchmark.py --dataset breast_cancer --fast --no-plot
