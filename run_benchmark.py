@@ -22,7 +22,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from src.models import build_models
 from src.preprocessor import DATASET_REGISTRY
-from src.evaluator import evaluate_models
+from src.evaluator import evaluate_models, evaluate_cross_validation
 from src.visualizer import plot_bar_chart, plot_heatmap, plot_radar_chart, plot_roc_curves
 
 
@@ -81,6 +81,7 @@ def main():
     parser = argparse.ArgumentParser(description="Healthcare Diagnostics ML Comparative Suite")
     parser.add_argument("--dataset", choices=["all"] + list(DATASET_REGISTRY.keys()), default="all",
                         help="Choose specific medical dataset or 'all'")
+    parser.add_argument("--cv", type=int, default=0, help="Run k-fold cross-validation instead of single split (e.g. --cv 5)")
     parser.add_argument("--fast", action="store_true", help="Run in fast mode (reduced estimators for testing)")
     parser.add_argument("--no-plot", action="store_true", help="Skip generating plot images")
     args = parser.parse_args()
