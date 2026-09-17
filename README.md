@@ -1,6 +1,7 @@
 # 🏥 Comparative Analysis of Machine Learning Models for Healthcare Diagnostics
 
 [![CI](https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics/actions/workflows/ci.yml/badge.svg)](https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics/actions)
+[![Kaggle Notebook](https://img.shields.io/badge/Kaggle-Notebook_Published-20BEFF.svg?logo=kaggle&logoColor=white)](https://www.kaggle.com/code/yasirnalazmi/clinical-ai-benchmark-10-diagnostic-ml-models)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg?logo=python&logoColor=white)](https://python.org)
 [![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-1.3+-F7931E.svg?logo=scikit-learn&logoColor=white)](https://scikit-learn.org)
 [![XGBoost](https://img.shields.io/badge/XGBoost-1.7+-red.svg)](https://xgboost.readthedocs.io)
