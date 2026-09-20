@@ -1,0 +1,2 @@
+Model_A,Model_B,Mean_Delta_AUC (%),Delta_AUC_95_CI,P_Value,Statistically_Significant
+Logistic Regression,CatBoost,0.77,"[0.43%, 1.11%]",0.0,True

@@ -1,7 +1,7 @@
 """
-Clinical Stress-Testing & Robustness Verification Module.
+Simulated Measurement & Assay Perturbation Stress-Testing Module.
 Features:
-1. Laboratory Sensor Perturbation Drift (0% to 20% Gaussian noise)
+1. Simulated Clinical Laboratory Assay & Biometric Perturbation Drift (0% to 20% Gaussian noise)
 2. Missing Clinical Feature Stress-Test (simulating resource-constrained rural clinics)
 3. Multi-Seed Generalization Stability across 10 distinct random initializations
 """
@@ -20,11 +20,13 @@ def evaluate_sensor_noise_drift(
     X_test: pd.DataFrame,
     y_test: pd.Series,
     noise_levels: List[float] = [0.0, 0.05, 0.10, 0.15, 0.20],
+    n_bootstraps: int = 1000,
     random_state: int = 42
 ) -> pd.DataFrame:
     """
-    Simulates clinical laboratory instrument calibration drift by injecting Gaussian perturbation
-    into continuous clinical covariates of test subjects.
+    Simulates clinical laboratory instrument and biometric measurement perturbation drift
+    by injecting Gaussian noise into continuous clinical covariates of test subjects.
+    Computes point estimates and 1,000-resample bootstrap 95% Confidence Intervals.
     """
     pipeline.fit(X_train, y_train)
     resilience = {}
@@ -32,6 +34,8 @@ def evaluate_sensor_noise_drift(
     # Identify continuous numerical columns
     num_cols = X_test.select_dtypes(include=[np.number]).columns.tolist()
     stds = X_test[num_cols].std().replace(0, 1.0)
+    y_test_arr = np.asarray(y_test)
+    n_test = len(y_test_arr)
 
     for noise in noise_levels:
         if noise == 0.0:
@@ -43,21 +47,52 @@ def evaluate_sensor_noise_drift(
             X_noisy[num_cols] = X_noisy[num_cols] + noise_matrix
 
         y_pred = pipeline.predict(X_noisy)
-        y_proba = pipeline.predict_proba(X_noisy)[:, 1]
+        y_proba = pipeline.predict_proba(X_noisy)[:, 1] if hasattr(pipeline, "predict_proba") else pipeline.predict(X_noisy)
 
-        auc_val = roc_auc_score(y_test, y_proba) * 100.0
-        rec_val = recall_score(y_test, y_pred, zero_division=0) * 100.0
-        bal_acc = balanced_accuracy_score(y_test, y_pred) * 100.0
+        auc_val = roc_auc_score(y_test_arr, y_proba) * 100.0
+        rec_val = recall_score(y_test_arr, y_pred, zero_division=0) * 100.0
+        bal_acc = balanced_accuracy_score(y_test_arr, y_pred) * 100.0
 
-        label = f"Noise_{int(noise * 100)}%"
+        # Non-parametric bootstrap for 95% CI
+        boot_rng = np.random.default_rng(random_state)
+        boot_aucs, boot_recs = [], []
+        for _ in range(n_bootstraps):
+            b_idx = boot_rng.choice(n_test, size=n_test, replace=True)
+            if len(np.unique(y_test_arr[b_idx])) < 2:
+                continue
+            try:
+                boot_aucs.append(roc_auc_score(y_test_arr[b_idx], y_proba[b_idx]) * 100.0)
+                boot_recs.append(recall_score(y_test_arr[b_idx], y_pred[b_idx], zero_division=0) * 100.0)
+            except Exception:
+                pass
+
+        if boot_aucs:
+            auc_ci = f"[{np.percentile(boot_aucs, 2.5):.2f}%, {np.percentile(boot_aucs, 97.5):.2f}%]"
+        else:
+            auc_ci = f"[{auc_val:.2f}%, {auc_val:.2f}%]"
+
+        if boot_recs:
+            rec_ci = f"[{np.percentile(boot_recs, 2.5):.2f}%, {np.percentile(boot_recs, 97.5):.2f}%]"
+        else:
+            rec_ci = f"[{rec_val:.2f}%, {rec_val:.2f}%]"
+
+        label = f"Perturbation_{int(noise * 100)}%" if noise > 0 else "Baseline_0%"
         resilience[label] = {
+            "Perturbation Level": f"+{int(noise * 100)}% Gaussian Noise",
             "ROC-AUC": round(auc_val, 2),
+            "ROC-AUC [95% CI]": auc_ci,
             "Sensitivity (Recall)": round(rec_val, 2),
+            "Sensitivity [95% CI]": rec_ci,
             "Balanced Accuracy": round(bal_acc, 2),
-            "Retention_Ratio": f"{(auc_val / resilience.get('Noise_0%', {}).get('ROC-AUC', auc_val)) * 100:.1f}%" if noise > 0 else "100.0%"
+            "Retention_Ratio": f"{(auc_val / resilience.get('Baseline_0%', {}).get('ROC-AUC', auc_val)) * 100:.1f}%" if noise > 0 else "100.0%"
         }
 
     return pd.DataFrame(resilience).T
+
+
+# Alias for explicit publication nomenclature
+evaluate_simulated_perturbation_stress = evaluate_sensor_noise_drift
+
 
 
 def evaluate_missing_feature_stress(

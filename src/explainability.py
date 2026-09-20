@@ -104,14 +104,18 @@ def audit_clinical_guideline_alignment(importance_df: pd.DataFrame, top_k: int =
             matches.append(f)
 
     alignment_pct = (len(matches) / float(top_k)) * 100.0
-    verdict = "PASSED: Clinically Validated" if alignment_pct >= 80.0 else "WARNING: Potential Shortcut Learning"
+    if alignment_pct >= 80.0:
+        verdict = "Plausibility Audit: High Consistency with AHA/ACC Pathophysiology"
+    else:
+        verdict = "Plausibility Audit: Partial Alignment with AHA/ACC Guidelines (Requires Prospective Clinical Review)"
 
     return {
         "Top_K_Examined": top_k,
         "Top_Features": top_features,
         "Clinical_Matches": matches,
         "Guideline_Alignment_Rate": f"{alignment_pct:.1f}%",
-        "Clinical_Safety_Verdict": verdict
+        "Clinical_Safety_Verdict": verdict,
+        "Clinical_Plausibility_Verdict": verdict,
     }
 
 

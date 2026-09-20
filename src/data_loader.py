@@ -157,3 +157,12 @@ def load_external_validation_cohort(n_samples: int = 2500, random_state: int = 1
     y = df["CVD_Diagnosis"]
     X = engineer_clinical_features(df.drop(columns=["CVD_Diagnosis"]))
     return X, y
+
+
+def evaluate_locked_external_validation(*args, **kwargs):
+    """
+    Convenience proxy re-exporting evaluate_locked_external_validation from src.evaluator.
+    """
+    from src.evaluator import evaluate_locked_external_validation as _eval_ext
+    return _eval_ext(*args, **kwargs)
+

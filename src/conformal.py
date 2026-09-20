@@ -55,14 +55,21 @@ def evaluate_conformal_prediction(
     y_test: pd.Series,
     alpha: float = 0.05,
     calib_size: float = 0.25,
+    n_bootstraps: int = 1000,
     random_state: int = 42
 ) -> Dict[str, Any]:
     """
     Executes Split (Inductive) Conformal Prediction:
-    Guarantees finite-sample marginal coverage: P(Y in C(X)) >= 1 - alpha.
+    Guarantees finite-sample marginal statistical coverage: P(Y in C(X)) >= 1 - alpha
+    strictly under the exchangeability (i.i.d.) hypothesis.
     
+    IMPORTANT CLINICAL NOTE:
+    This guarantees marginal statistical coverage over hypothetical exchangeable draws;
+    it is NOT an absolute guarantee of patient-specific diagnostic certainty. Ambiguous sets {0, 1}
+    indicate high uncertainty and mandate human physician triage / referral.
+
     Returns:
-        Coverage percentage, mean set size, ambiguity rate (referrals), and ECE.
+        Coverage percentage with 95% CIs, mean set size, ambiguity referral rate, and ECE.
     """
     # 1. Split training into pure training and calibration splits
     X_tr, X_cal, y_tr, y_cal = train_test_split(
@@ -110,6 +117,16 @@ def evaluate_conformal_prediction(
     covered = np.where(y_test_arr == 0, set_includes_0, set_includes_1)
     empirical_coverage = np.mean(covered) * 100.0
 
+    # Non-parametric bootstrap for coverage 95% CI
+    boot_rng = np.random.default_rng(random_state)
+    boot_covs = []
+    n_t = len(covered)
+    for _ in range(n_bootstraps):
+        b_idx = boot_rng.choice(n_t, size=n_t, replace=True)
+        boot_covs.append(np.mean(covered[b_idx]) * 100.0)
+
+    cov_ci = f"[{np.percentile(boot_covs, 2.5):.2f}%, {np.percentile(boot_covs, 97.5):.2f}%]"
+
     # Ambiguity (both classes included {0, 1} -> requires human clinician referral)
     ambiguous = set_sizes == 2
     ambiguity_rate = np.mean(ambiguous) * 100.0
@@ -122,7 +139,9 @@ def evaluate_conformal_prediction(
 
     return {
         "Target_Coverage": f"{(1 - alpha) * 100:.1f}%",
+        "Coverage_Guarantee_Type": "Marginal Statistical Coverage under Exchangeability",
         "Empirical_Coverage": round(empirical_coverage, 2),
+        "Empirical_Coverage [95% CI]": cov_ci,
         "Conformal_Threshold": round(float(q_hat), 4),
         "Mean_Set_Size": round(float(np.mean(set_sizes)), 3),
         "Singleton_Certainty_Rate": round(singleton_rate, 2),

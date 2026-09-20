@@ -1,33 +1,33 @@
 Feature,Mean_Abs_SHAP
-Age,0.83556074
-Total_HDL_Ratio,0.2663906
-Smoking_Current,0.15407391
-Systolic_BP,0.091494404
-AIP,0.07551829
-Smoking_Never,0.059664454
-Fasting_Glucose,0.055504348
-HbA1c,0.049423013
-TyG_Index,0.03760465
-Sex_Female,0.034105714
-Waist_Circumference,0.028896233
-Serum_Creatinine,0.02560134
-Non_HDL_Cholesterol,0.023879835
-HDL_Cholesterol,0.019259274
-Triglycerides,0.019095382
-eGFR,0.015424892
-BMI,0.012605504
-Standing_Height,0.011375863
-Pulse_Pressure,0.008551715
-Smoking_Former,0.008305877
-MAP,0.0062671616
-Total_Cholesterol,0.0060626827
-LDL_HDL_Ratio,0.003286991
-LDL_Cholesterol,0.0011577077
-Diastolic_BP,0.00094387145
-BUN,0.00076615706
-Race_Other Hispanic,0.0007185525
-Race_Asian / Other,0.00053973176
-Race_Non-Hispanic Black,0.0005170482
+Age,1.4095969
+Smoking_Current,0.3949331
+Total_HDL_Ratio,0.37742227
+Systolic_BP,0.31302202
+HbA1c,0.29865146
+Smoking_Never,0.2575421
+AIP,0.24712004
+Sex_Female,0.24019554
+Serum_Creatinine,0.2401854
+Non_HDL_Cholesterol,0.17097855
+eGFR,0.16784213
+Waist_Circumference,0.15325253
+Fasting_Glucose,0.14820503
+BMI,0.14187992
+TyG_Index,0.13870059
+Total_Cholesterol,0.12388949
+Standing_Height,0.12293081
+Triglycerides,0.11848349
+HDL_Cholesterol,0.114284225
+MAP,0.0980499
+Pulse_Pressure,0.07955721
+Diastolic_BP,0.05190111
+Race_Asian / Other,0.049725063
+LDL_Cholesterol,0.047646616
+Race_Non-Hispanic Black,0.047426388
+BUN,0.045690123
+Race_Non-Hispanic White,0.04001809
+LDL_HDL_Ratio,0.03729788
+Race_Other Hispanic,0.025560735
+Smoking_Former,0.020873006
+Race_Mexican American,0.014463564
 Sex_Male,0.0
-Race_Non-Hispanic White,0.0
-Race_Mexican American,0.0

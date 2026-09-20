@@ -9,12 +9,21 @@ Features:
 from typing import Dict, Any, Tuple
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import roc_auc_score, recall_score, precision_score, balanced_accuracy_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.metrics import (
+    roc_auc_score,
+    recall_score,
+    precision_score,
+    balanced_accuracy_score,
+    average_precision_score,
+    matthews_corrcoef,
+    brier_score_loss,
+)
 import optuna
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 from src.preprocessor import build_leakage_free_pipeline
+from src.evaluator import compute_expected_calibration_error
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
@@ -120,3 +129,120 @@ def tune_model_optuna(
 
     best_clf = sample_hyperparameters_optuna(study.best_trial, model_name, random_state=random_state)
     return best_clf, study.best_params
+
+
+def evaluate_nested_cross_validation(
+    model_name: str,
+    X: pd.DataFrame,
+    y: pd.Series,
+    num_cols: list,
+    cat_cols: list,
+    outer_splits: int = 5,
+    inner_splits: int = 5,
+    n_trials: int = 15,
+    use_smote: bool = False,
+    random_state: int = 42,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Executes true 5x5 Nested Stratified Cross-Validation with inner-loop Optuna Bayesian optimization.
+    Guarantees zero selection bias: hyperparameter tuning is restricted strictly to inner folds,
+    and clinical decision thresholds are derived on training partitions without test snooping.
+
+    Returns:
+        df_summary: DataFrame with mean metrics, standard deviations, and 95% Confidence Intervals.
+        df_outer_folds: DataFrame with per-fold prospective outer test evaluation metrics.
+    """
+    outer_skf = StratifiedKFold(n_splits=outer_splits, shuffle=True, random_state=random_state)
+    outer_records = []
+
+    for fold_idx, (tr_idx, te_idx) in enumerate(outer_skf.split(X, y), 1):
+        X_tr_outer, X_te_outer = X.iloc[tr_idx], X.iloc[te_idx]
+        y_tr_outer, y_te_outer = y.iloc[tr_idx], y.iloc[te_idx]
+
+        # Inner loop: Bayesian Hyperparameter Optimization on outer training split only
+        inner_skf = StratifiedKFold(n_splits=inner_splits, shuffle=True, random_state=random_state + fold_idx)
+
+        def objective(trial):
+            clf = sample_hyperparameters_optuna(trial, model_name, random_state=random_state)
+            inner_scores = []
+            for in_tr_idx, in_val_idx in inner_skf.split(X_tr_outer, y_tr_outer):
+                in_X_tr, in_X_val = X_tr_outer.iloc[in_tr_idx], X_tr_outer.iloc[in_val_idx]
+                in_y_tr, in_y_val = y_tr_outer.iloc[in_tr_idx], y_tr_outer.iloc[in_val_idx]
+
+                pipe = build_leakage_free_pipeline(clf, num_cols, cat_cols, use_smote=use_smote, random_state=random_state)
+                pipe.fit(in_X_tr, in_y_tr)
+                if hasattr(pipe, "predict_proba"):
+                    in_proba = pipe.predict_proba(in_X_val)[:, 1]
+                else:
+                    in_proba = pipe.predict(in_X_val)
+                inner_scores.append(roc_auc_score(in_y_val, in_proba))
+            return float(np.mean(inner_scores))
+
+        study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_state + fold_idx))
+        study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
+
+        best_clf = sample_hyperparameters_optuna(study.best_trial, model_name, random_state=random_state)
+
+        # Threshold derivation on outer training partition only (zero outer test snooping)
+        X_dev, X_tune, y_dev, y_tune = train_test_split(
+            X_tr_outer, y_tr_outer, test_size=0.25, stratify=y_tr_outer, random_state=random_state + fold_idx
+        )
+        tune_pipe = build_leakage_free_pipeline(best_clf, num_cols, cat_cols, use_smote=use_smote, random_state=random_state)
+        tune_pipe.fit(X_dev, y_dev)
+        tune_proba = tune_pipe.predict_proba(X_tune)[:, 1] if hasattr(tune_pipe, "predict_proba") else tune_pipe.predict(X_tune)
+        thresh_info = find_optimal_clinical_threshold(np.asarray(y_tune), tune_proba)
+        locked_thresh = thresh_info["Optimal_Threshold"]
+
+        # Refit best model on FULL outer training fold
+        final_pipe = build_leakage_free_pipeline(best_clf, num_cols, cat_cols, use_smote=use_smote, random_state=random_state)
+        final_pipe.fit(X_tr_outer, y_tr_outer)
+
+        # Blind prospective evaluation on untouched outer test partition
+        y_te_proba = final_pipe.predict_proba(X_te_outer)[:, 1] if hasattr(final_pipe, "predict_proba") else final_pipe.predict(X_te_outer)
+        y_te_arr = np.asarray(y_te_outer)
+        y_te_pred = (y_te_proba >= locked_thresh).astype(int)
+
+        roc = roc_auc_score(y_te_arr, y_te_proba)
+        pr_auc = average_precision_score(y_te_arr, y_te_proba)
+        sens = recall_score(y_te_arr, y_te_pred, zero_division=0)
+        spec = recall_score(1 - y_te_arr, 1 - y_te_pred, zero_division=0)
+        bal_acc = balanced_accuracy_score(y_te_arr, y_te_pred)
+        brier = brier_score_loss(y_te_arr, y_te_proba)
+        ece, _, _ = compute_expected_calibration_error(y_te_arr, y_te_proba)
+        mcc = matthews_corrcoef(y_te_arr, y_te_pred)
+
+        outer_records.append({
+            "Fold": fold_idx,
+            "Model": model_name,
+            "ROC-AUC": roc * 100.0,
+            "PR-AUC": pr_auc * 100.0,
+            "Sensitivity": sens * 100.0,
+            "Specificity": spec * 100.0,
+            "Balanced_Acc": bal_acc * 100.0,
+            "Brier_Score": brier,
+            "ECE": ece,
+            "MCC": mcc,
+            "Locked_Threshold": locked_thresh,
+            "Best_Params": str(study.best_params),
+        })
+
+    df_outer_folds = pd.DataFrame(outer_records)
+
+    # Compute outer summary statistics with 95% Confidence Intervals
+    k = outer_splits
+    summary_data = {}
+    for col in ["ROC-AUC", "PR-AUC", "Sensitivity", "Specificity", "Balanced_Acc", "Brier_Score", "ECE", "MCC"]:
+        vals = df_outer_folds[col].values
+        mean_val = float(np.mean(vals))
+        std_val = float(np.std(vals))
+        ci_95 = 1.96 * (std_val / np.sqrt(k))
+        if col in ["ROC-AUC", "PR-AUC", "Sensitivity", "Specificity", "Balanced_Acc"]:
+            summary_data[f"{col} [95% CI]"] = f"{mean_val:.2f}% ± {ci_95:.2f}%"
+            summary_data[f"{col} (Mean±Std)"] = f"{mean_val:.2f}% ± {std_val:.2f}%"
+        else:
+            summary_data[f"{col} [95% CI]"] = f"{mean_val:.4f} ± {ci_95:.4f}"
+            summary_data[f"{col} (Mean±Std)"] = f"{mean_val:.4f} ± {std_val:.4f}"
+
+    df_summary = pd.DataFrame([summary_data], index=[model_name])
+    return df_summary, df_outer_folds
+
