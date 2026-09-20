@@ -17,7 +17,7 @@
 | **Methods - Missing Data** | 9 | Detail missing data mechanisms and zero-leakage KNNImputer specification. | YES | Section 2.6 |
 | **Methods - AI Modeling** | 10a | Fully describe 10 ML architectures, ensembling mechanisms, and Optuna tuning. | YES | Section 3.1 |
 | | 10b | Detail data splitting protocol (5x5 Nested Stratified Cross-Validation). | YES | Section 3.2 |
-| | 10c | Specify inductive conformal prediction ($1 - \alpha = 0.95$) coverage guarantees. | YES | Section 3.3 |
+| | 10c | Specify inductive conformal prediction ($1 - lpha = 0.95$) coverage guarantees. | YES | Section 3.3 |
 | **Methods - Evaluation** | 11 | Define discrimination, Brier score, ECE, sensor perturbation, and Friedman tests. | YES | Section 3.4 |
 | **Results - Participants** | 12 | Table 1: Baseline clinical, demographic, and hemodynamic characteristics. | YES | Table 1 |
 | **Results - Performance** | 13a | Model discrimination (ROC-AUC, PR-AUC, Sensitivity, Specificity, MCC). | YES | Table 2 |
