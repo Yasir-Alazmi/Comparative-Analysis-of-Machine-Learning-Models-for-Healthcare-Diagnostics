@@ -1,0 +1,2 @@
+Target_Coverage,Empirical_Coverage,Conformal_Threshold,Mean_Set_Size,Singleton_Certainty_Rate,Ambiguity_Referral_Rate,Expected_Calibration_Error
+95.0%,94.95,0.7923,1.321,67.86,32.14,0.1031

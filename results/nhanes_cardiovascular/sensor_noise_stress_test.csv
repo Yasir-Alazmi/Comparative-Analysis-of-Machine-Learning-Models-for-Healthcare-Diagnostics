@@ -1,0 +1,6 @@
+,ROC-AUC,Sensitivity (Recall),Balanced Accuracy,Retention_Ratio
+Noise_0%,92.98,89.77,85.39,100.0%
+Noise_5%,92.87,89.05,84.99,99.9%
+Noise_10%,92.69,89.05,84.85,99.7%
+Noise_15%,92.45,89.05,84.42,99.4%
+Noise_20%,92.11,88.62,84.1,99.1%
