@@ -1,38 +1,91 @@
 """
-Dataset loading and clinical feature preprocessing routines for 5 medical benchmarks:
-1. Breast Cancer Wisconsin (Diagnostic)
-2. Chronic Kidney Disease (CKD)
-3. Heart Failure Prediction
-4. Pima Indians Diabetes Database
-5. Stroke Prediction Dataset (with SMOTE oversampling for extreme class imbalance)
+Leakage-Free Clinical Preprocessing & Dataset Registry Module.
+Features:
+1. Zero-Leakage Pipeline Architecture (ColumnTransformer + ImbPipeline)
+2. Robust Scaling & Missingness Imputation strictly inside folds
+3. Proper Nominal One-Hot Encoding (no arbitrary LabelEncoder ordering)
+4. Borderline-SMOTE oversampling on training folds only
+5. Flagship CDC NHANES Cardiovascular Benchmark Registration
 """
 
 import os
-from typing import Tuple
+from typing import Tuple, List, Dict, Any
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
+
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import KNNImputer, SimpleImputer
+from sklearn.preprocessing import RobustScaler, OneHotEncoder
+from imblearn.pipeline import Pipeline as ImbPipeline
+from imblearn.over_sampling import BorderlineSMOTE, SMOTE
+
+from src.features import engineer_clinical_features
+from src.data_loader import load_nhanes_cardiovascular, load_external_validation_cohort
 
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "datasets")
 
 
+def build_leakage_free_pipeline(
+    classifier: Any,
+    num_cols: List[str],
+    cat_cols: List[str],
+    use_smote: bool = False,
+    random_state: int = 42,
+) -> ImbPipeline:
+    """
+    Constructs a scientifically sealed pipeline ensuring strictly zero data leakage.
+    Imputers, scalers, encoders, and resamplers are fitted solely on training partitions.
+    """
+    num_steps = []
+    if len(num_cols) > 0:
+        num_steps.append(("imputer", KNNImputer(n_neighbors=5)))
+        num_steps.append(("scaler", RobustScaler()))
+    num_pipe = ImbPipeline(num_steps) if len(num_steps) > 0 else "drop"
+
+    cat_steps = []
+    if len(cat_cols) > 0:
+        cat_steps.append(("imputer", SimpleImputer(strategy="most_frequent")))
+        cat_steps.append(("encoder", OneHotEncoder(handle_unknown="ignore", sparse_output=False)))
+    cat_pipe = ImbPipeline(cat_steps) if len(cat_steps) > 0 else "drop"
+
+    transformers = []
+    if len(num_cols) > 0:
+        transformers.append(("num", num_pipe, num_cols))
+    if len(cat_cols) > 0:
+        transformers.append(("cat", cat_pipe, cat_cols))
+
+    preprocessor = ColumnTransformer(transformers=transformers, remainder="drop")
+
+    pipeline_steps = [("preprocessor", preprocessor)]
+
+    if use_smote:
+        # Borderline-SMOTE targets boundary decision regions for maximum clinical sensitivity
+        pipeline_steps.append(("resampler", BorderlineSMOTE(random_state=random_state)))
+
+    pipeline_steps.append(("clf", classifier))
+
+    return ImbPipeline(pipeline_steps)
+
+
+# =====================================================================
+# Dataset Loaders (Returning Uncontaminated Features & Target)
+# =====================================================================
+
 def load_breast_cancer(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
-    """Preprocess Breast Cancer Wisconsin (Diagnostic) dataset."""
+    """Breast Cancer Wisconsin (Diagnostic) FNA Cytology dataset."""
     if data_path is None:
         data_path = os.path.join(DEFAULT_DATA_DIR, "breast_cancer.csv")
     df = pd.read_csv(data_path)
-    df.drop(columns=["id"], inplace=True, errors="ignore")
+    df.drop(columns=["id", "Unnamed: 32"], inplace=True, errors="ignore")
     df.dropna(axis=1, how="all", inplace=True)
     df.dropna(inplace=True)
-    le = LabelEncoder()
-    df["diagnosis"] = le.fit_transform(df["diagnosis"])
+    y = (df["diagnosis"].astype(str).str.upper() == "M").astype(int)
     X = df.drop(columns=["diagnosis"])
-    y = df["diagnosis"]
     return X, y
 
 
 def load_chronic_kidney(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
-    """Preprocess Chronic Kidney Disease dataset with clinical imputation."""
+    """Chronic Kidney Disease (CKD) dataset."""
     if data_path is None:
         data_path = os.path.join(DEFAULT_DATA_DIR, "kidney_disease.csv")
     df = pd.read_csv(data_path)
@@ -41,52 +94,32 @@ def load_chronic_kidney(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]
 
     for col in df.columns:
         df[col] = df[col].astype(str).str.strip()
-        df[col] = df[col].replace({"?": np.nan, "": np.nan, "nan": np.nan, "	?": np.nan})
+        df[col] = df[col].replace({"?": np.nan, "": np.nan, "nan": np.nan, "\t?": np.nan})
 
     target = df["classification"].str.lower().str.strip().apply(
         lambda x: 0 if "notckd" in str(x) else 1
     )
-
+    X = df.drop(columns=["classification"])
     num_cols = ["age", "bp", "bgr", "bu", "sc", "sod", "pot", "hemo", "pcv", "wc", "rc"]
-    cat_cols = ["sg", "al", "su", "rbc", "pc", "pcc", "ba", "htn", "dm", "cad", "appet", "pe", "ane"]
-
-    present_num = [c for c in num_cols if c in df.columns]
-    present_cat = [c for c in cat_cols if c in df.columns]
-
-    for col in present_num:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-        df[col] = df[col].fillna(df[col].median())
-
-    le = LabelEncoder()
-    for col in present_cat:
-        df[col] = df[col].astype(str).str.strip().str.lower()
-        mode_val = df[col].replace("nan", np.nan).dropna().mode()
-        fill_val = mode_val[0] if len(mode_val) > 0 else "unknown"
-        df[col] = df[col].replace("nan", fill_val).fillna(fill_val)
-        df[col] = le.fit_transform(df[col])
-
-    X = df[present_num + present_cat].copy()
+    for c in num_cols:
+        if c in X.columns:
+            X[c] = pd.to_numeric(X[c], errors="coerce")
     return X, target
 
 
 def load_heart_failure(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
-    """Preprocess Heart Failure Prediction dataset."""
+    """Heart Failure Prediction dataset with clinical feature engineering."""
     if data_path is None:
         data_path = os.path.join(DEFAULT_DATA_DIR, "heart_failure.csv")
     df = pd.read_csv(data_path)
-    cat_cols = ["Sex", "ChestPainType", "RestingECG", "ExerciseAngina", "ST_Slope"]
-    le = LabelEncoder()
-    for col in cat_cols:
-        if col in df.columns:
-            df[col] = le.fit_transform(df[col])
-
     X = df.drop(columns=["HeartDisease"])
     y = df["HeartDisease"]
+    X = engineer_clinical_features(X)
     return X, y
 
 
 def load_pima_diabetes(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
-    """Preprocess Pima Indians Diabetes Database with biological zero-imputation."""
+    """Pima Indians Diabetes Database with biological zero-handling."""
     if data_path is None:
         data_path = os.path.join(DEFAULT_DATA_DIR, "pima_diabetes.csv")
     df = pd.read_csv(data_path)
@@ -94,67 +127,76 @@ def load_pima_diabetes(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
     for col in zero_cols:
         if col in df.columns:
             df[col] = df[col].replace(0, np.nan)
-            df[col] = df[col].fillna(df[col].median())
-
     X = df.drop(columns=["Outcome"])
     y = df["Outcome"]
+    X = engineer_clinical_features(X)
     return X, y
 
 
 def load_stroke_prediction(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
-    """Preprocess Stroke Prediction Dataset."""
+    """Stroke Prediction Dataset with clinical feature engineering."""
     if data_path is None:
         data_path = os.path.join(DEFAULT_DATA_DIR, "stroke_prediction.csv")
     df = pd.read_csv(data_path)
     df = df.drop(columns=["id"], errors="ignore")
     df["bmi"] = pd.to_numeric(df["bmi"], errors="coerce")
-    df["bmi"] = df["bmi"].fillna(df["bmi"].median())
-
-    cat_cols = ["gender", "ever_married", "work_type", "Residence_type", "smoking_status"]
-    le = LabelEncoder()
-    for col in cat_cols:
-        if col in df.columns:
-            df[col] = le.fit_transform(df[col])
-
     X = df.drop(columns=["stroke"])
     y = df["stroke"]
+    X = engineer_clinical_features(X)
     return X, y
 
 
+# =====================================================================
+# Master Benchmark Registry
+# =====================================================================
+
 DATASET_REGISTRY = {
-    "breast_cancer": {
-        "name": "Breast Cancer Wisconsin (Diagnostic)",
-        "loader": load_breast_cancer,
-        "default_file": "breast_cancer.csv",
-        "use_smote": False,
-        "sort_metric": "Accuracy"
-    },
-    "chronic_kidney": {
-        "name": "Chronic Kidney Disease (CKD)",
-        "loader": load_chronic_kidney,
-        "default_file": "kidney_disease.csv",
-        "use_smote": False,
-        "sort_metric": "Accuracy"
+    "nhanes_cardiovascular": {
+        "name": "CDC NHANES Cardiovascular Cohort",
+        "loader": load_nhanes_cardiovascular,
+        "default_file": "nhanes_cardiovascular.csv",
+        "use_smote": True,
+        "sort_metric": "ROC-AUC",
+        "target_name": "CVD (Cardiovascular Disease)"
     },
     "heart_failure": {
         "name": "Heart Failure Prediction",
         "loader": load_heart_failure,
         "default_file": "heart_failure.csv",
         "use_smote": False,
-        "sort_metric": "Accuracy"
-    },
-    "pima_diabetes": {
-        "name": "Pima Indians Diabetes Database",
-        "loader": load_pima_diabetes,
-        "default_file": "pima_diabetes.csv",
-        "use_smote": False,
-        "sort_metric": "Accuracy"
+        "sort_metric": "ROC-AUC",
+        "target_name": "Heart Disease"
     },
     "stroke_prediction": {
         "name": "Stroke Prediction Dataset",
         "loader": load_stroke_prediction,
         "default_file": "stroke_prediction.csv",
         "use_smote": True,
-        "sort_metric": "F1-Score"
+        "sort_metric": "ROC-AUC",
+        "target_name": "Acute Stroke"
+    },
+    "breast_cancer": {
+        "name": "Breast Cancer Wisconsin (Diagnostic)",
+        "loader": load_breast_cancer,
+        "default_file": "breast_cancer.csv",
+        "use_smote": False,
+        "sort_metric": "Accuracy",
+        "target_name": "Malignancy"
+    },
+    "pima_diabetes": {
+        "name": "Pima Indians Diabetes Database",
+        "loader": load_pima_diabetes,
+        "default_file": "pima_diabetes.csv",
+        "use_smote": False,
+        "sort_metric": "ROC-AUC",
+        "target_name": "Diabetes Onset"
+    },
+    "chronic_kidney": {
+        "name": "Chronic Kidney Disease (CKD)",
+        "loader": load_chronic_kidney,
+        "default_file": "kidney_disease.csv",
+        "use_smote": False,
+        "sort_metric": "ROC-AUC",
+        "target_name": "CKD Progression"
     }
 }
