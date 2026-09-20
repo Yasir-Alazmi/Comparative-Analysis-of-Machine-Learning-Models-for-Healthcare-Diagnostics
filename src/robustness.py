@@ -1,86 +1,138 @@
 """
-Scientific Robustness & Anti-Manipulation Testing Suite:
-1. Multi-Seed Stability Test: Evaluates models over 10 distinct random train/test splits.
-2. Noise Perturbation Stress Test: Injects Gaussian sensor noise into clinical features to evaluate stability.
-3. Leakage Guard Audit: Confirms strictly zero training-validation contamination.
+Clinical Stress-Testing & Robustness Verification Module.
+Features:
+1. Laboratory Sensor Perturbation Drift (0% to 20% Gaussian noise)
+2. Missing Clinical Feature Stress-Test (simulating resource-constrained rural clinics)
+3. Multi-Seed Generalization Stability across 10 distinct random initializations
 """
 
 from typing import Dict, Any, List
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-from imblearn.over_sampling import SMOTE
+from sklearn.metrics import accuracy_score, recall_score, roc_auc_score, balanced_accuracy_score
 
 
-def evaluate_seed_stability(
+def evaluate_sensor_noise_drift(
+    pipeline: Any,
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
+    noise_levels: List[float] = [0.0, 0.05, 0.10, 0.15, 0.20],
+    random_state: int = 42
+) -> pd.DataFrame:
+    """
+    Simulates clinical laboratory instrument calibration drift by injecting Gaussian perturbation
+    into continuous clinical covariates of test subjects.
+    """
+    pipeline.fit(X_train, y_train)
+    resilience = {}
+
+    # Identify continuous numerical columns
+    num_cols = X_test.select_dtypes(include=[np.number]).columns.tolist()
+    stds = X_test[num_cols].std().replace(0, 1.0)
+
+    for noise in noise_levels:
+        if noise == 0.0:
+            X_noisy = X_test.copy()
+        else:
+            rng = np.random.default_rng(random_state)
+            X_noisy = X_test.copy()
+            noise_matrix = rng.normal(0.0, noise, size=(len(X_test), len(num_cols))) * stds.values
+            X_noisy[num_cols] = X_noisy[num_cols] + noise_matrix
+
+        y_pred = pipeline.predict(X_noisy)
+        y_proba = pipeline.predict_proba(X_noisy)[:, 1]
+
+        auc_val = roc_auc_score(y_test, y_proba) * 100.0
+        rec_val = recall_score(y_test, y_pred, zero_division=0) * 100.0
+        bal_acc = balanced_accuracy_score(y_test, y_pred) * 100.0
+
+        label = f"Noise_{int(noise * 100)}%"
+        resilience[label] = {
+            "ROC-AUC": round(auc_val, 2),
+            "Sensitivity (Recall)": round(rec_val, 2),
+            "Balanced Accuracy": round(bal_acc, 2),
+            "Retention_Ratio": f"{(auc_val / resilience.get('Noise_0%', {}).get('ROC-AUC', auc_val)) * 100:.1f}%" if noise > 0 else "100.0%"
+        }
+
+    return pd.DataFrame(resilience).T
+
+
+def evaluate_missing_feature_stress(
+    pipeline: Any,
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
+    drop_fractions: List[float] = [0.0, 0.10, 0.20, 0.30],
+    random_state: int = 42
+) -> pd.DataFrame:
+    """
+    Simulates incomplete diagnostic panels in rural or emergency clinical settings
+    by randomly masking feature values with NaN to test pipeline imputation resilience.
+    """
+    pipeline.fit(X_train, y_train)
+    stress_results = {}
+    num_cols = X_test.select_dtypes(include=[np.number]).columns.tolist()
+
+    for frac in drop_fractions:
+        X_masked = X_test.copy()
+        if frac > 0.0:
+            rng = np.random.default_rng(random_state)
+            mask = rng.uniform(0.0, 1.0, size=X_masked[num_cols].shape) < frac
+            X_masked_num = X_masked[num_cols].copy()
+            X_masked_num[mask] = np.nan
+            X_masked[num_cols] = X_masked_num
+
+        y_proba = pipeline.predict_proba(X_masked)[:, 1]
+        y_pred = pipeline.predict(X_masked)
+
+        auc_val = roc_auc_score(y_test, y_proba) * 100.0
+        rec_val = recall_score(y_test, y_pred, zero_division=0) * 100.0
+
+        label = f"Missing_{int(frac * 100)}%"
+        stress_results[label] = {
+            "ROC-AUC": round(auc_val, 2),
+            "Sensitivity": round(rec_val, 2),
+        }
+
+    return pd.DataFrame(stress_results).T
+
+
+def evaluate_multi_seed_stability(
     pipelines: Dict[str, Any],
     X: pd.DataFrame,
     y: pd.Series,
-    seeds: List[int] = [7, 13, 21, 42, 77, 99, 123, 256, 512, 1024],
-    use_smote: bool = False,
+    seeds: List[int] = [42, 1337, 2024, 7, 99, 123, 256, 512, 777, 1024]
 ) -> pd.DataFrame:
     """
-    Evaluates models across 10 completely different train/test splits (seeds).
-    Proves that performance is statistically consistent and not cherry-picked.
+    Calculates 95% Confidence Intervals over 10 random independent train/test splits.
     """
     stability = {}
     for name, pipe in pipelines.items():
-        accs = []
-        f1s = []
+        aucs = []
+        recalls = []
         for s in seeds:
             X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, stratify=y, random_state=s)
-            if use_smote:
-                X_tr, y_tr = SMOTE(random_state=s).fit_resample(X_tr, y_tr)
             pipe.fit(X_tr, y_tr)
+            y_proba = pipe.predict_proba(X_te)[:, 1]
             y_pred = pipe.predict(X_te)
-            accs.append(accuracy_score(y_te, y_pred) * 100)
-            f1s.append(f1_score(y_te, y_pred, zero_division=0) * 100)
+
+            aucs.append(roc_auc_score(y_te, y_proba) * 100.0)
+            recalls.append(recall_score(y_te, y_pred, zero_division=0) * 100.0)
+
+        mean_auc = np.mean(aucs)
+        ci95_auc = 1.96 * (np.std(aucs) / np.sqrt(len(seeds)))
 
         stability[name] = {
-            "Mean Accuracy": round(np.mean(accs), 2),
-            "Std Accuracy": round(np.std(accs), 2),
-            "Min Accuracy": round(np.min(accs), 2),
-            "Max Accuracy": round(np.max(accs), 2),
-            "Stability Index": f"{np.mean(accs):.2f}% ± {np.std(accs):.2f}%",
+            "ROC-AUC (Mean ± 95% CI)": f"{mean_auc:.2f}% ± {ci95_auc:.2f}%",
+            "Sensitivity (Mean ± Std)": f"{np.mean(recalls):.2f}% ± {np.std(recalls):.2f}%",
+            "Min ROC-AUC": round(np.min(aucs), 2),
+            "Max ROC-AUC": round(np.max(aucs), 2),
+            "_sort_auc": mean_auc
         }
 
-    return pd.DataFrame(stability).T.sort_values("Mean Accuracy", ascending=False)
-
-
-def evaluate_noise_resilience(
-    pipelines: Dict[str, Any],
-    X: pd.DataFrame,
-    y: pd.Series,
-    noise_levels: List[float] = [0.0, 0.05, 0.10, 0.15],
-    random_state: int = 42,
-    use_smote: bool = False,
-) -> pd.DataFrame:
-    """
-    Simulates real-world clinical instrument noise by adding Gaussian perturbations to test features.
-    Verifies that the models maintain diagnostic fidelity despite measurement noise.
-    """
-    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, stratify=y, random_state=random_state)
-    if use_smote:
-        X_tr, y_tr = SMOTE(random_state=random_state).fit_resample(X_tr, y_tr)
-
-    resilience = {}
-    for name, pipe in pipelines.items():
-        pipe.fit(X_tr, y_tr)
-        row = {}
-        for noise in noise_levels:
-            if noise == 0.0:
-                X_noisy = X_te
-            else:
-                np.random.seed(random_state)
-                # Apply Gaussian noise scaled to feature standard deviation
-                stds = X_te.std(numeric_only=True).replace(0, 1)
-                noise_matrix = np.random.normal(0, noise, size=X_te.shape) * stds.values
-                X_noisy = X_te + noise_matrix
-
-            y_pred = pipe.predict(X_noisy)
-            acc = accuracy_score(y_te, y_pred) * 100
-            row[f"Noise {int(noise*100)}%"] = round(acc, 2)
-        resilience[name] = row
-
-    return pd.DataFrame(resilience).T
+    df_out = pd.DataFrame(stability).T.sort_values("_sort_auc", ascending=False)
+    return df_out.drop(columns=["_sort_auc"])
