@@ -1,7 +1,7 @@
 # 🏥 Toward Trustworthy Clinical AI: A Robustness, Explainability, and Uncertainty Benchmark on Real-World CDC NHANES & Framingham Cohorts
 
 [![CI](https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics/actions/workflows/ci.yml/badge.svg)](https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics/actions)
-[![TRIPOD+AI Compliant](https://img.shields.io/badge/TRIPOD%2BAI-Compliant-00A86B.svg)](https://www.bmj.com/content/385/bmj-2023-078378)
+[![TRIPOD+AI Checklist Mapped](https://img.shields.io/badge/TRIPOD%2BAI-Checklist%20Mapped-00A86B.svg)](results/nhanes_cardiovascular/tripod_ai_checklist.md)
 [![Cohort: CDC NHANES](https://img.shields.io/badge/Cohort-CDC%20NHANES%20(n=11,288)-blue.svg)](https://wwwn.cdc.gov/nchs/nhanes/)
 [![External Cohort: Framingham](https://img.shields.io/badge/External%20Cohort-Framingham%20Heart%20Study%20(n=4,240)-blueviolet.svg)](https://www.framinghamheartstudy.org/)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg?logo=python&logoColor=white)](https://python.org)
@@ -13,11 +13,11 @@
 [![SHAP](https://img.shields.io/badge/SHAP-TreeSHAP%20XAI-informational.svg)](https://shap.readthedocs.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An exhaustive, publication-grade clinical machine learning study evaluating **11 diverse algorithms and a Super Learner Stacking Ensemble** trained on **100% authentic, real-world human clinical data** from the **U.S. Centers for Disease Control and Prevention (CDC) National Health and Nutrition Examination Survey (NHANES)** ($N=11,288$ adult participants across continuous cycles 2015-2016 and 2017-2018) and prospectively transported to the **Framingham Heart Study longitudinal cohort** ($N=4,240$ real patients).
+A disciplined clinical machine learning benchmark evaluating **11 diverse algorithms and a Super Learner Stacking Ensemble** trained on **100% authentic, real-world human clinical data** from the **U.S. Centers for Disease Control and Prevention (CDC) National Health and Nutrition Examination Survey (NHANES)** ($N=11,288$ adult participants across continuous survey cycles 2015–2016 and 2017–2018) and evaluating cross-cohort transportability on the **Framingham Heart Study longitudinal cohort** ($N=4,240$ real patients).
 
-This repository addresses critical methodological translation gaps in medical artificial intelligence: **Zero-Snooping Clinical Decision Threshold Locking**, **1,000-Resample Non-Parametric Bootstrap 95% Confidence Intervals**, **Paired ROC Bootstrap Hypothesis Testing**, **5-Fold Stratified Cross-Validation with Friedman Omnibus Rank-Sum Testing**, **Simulated Measurement & Assay Perturbation Stress-Testing**, **AHA/ACC Pathophysiological Plausibility Auditing via TreeSHAP**, **Distribution-Free Uncertainty Quantification via Inductive Conformal Prediction**, **Locked Prospective External Validation**, and **Clinical Subgroup Demographic Fairness Auditing**.
+This repository evaluates practical translation questions in healthcare artificial intelligence: **Zero-Snooping Clinical Decision Threshold Locking**, **1,000-Resample Non-Parametric Bootstrap 95% Confidence Intervals**, **Paired ROC Bootstrap Hypothesis Testing**, **5-Fold Stratified Cross-Validation with Friedman Omnibus Rank-Sum Testing**, **Simulated Measurement & Assay Perturbation Stress-Testing**, **AHA/ACC Pathophysiological Plausibility Auditing via TreeSHAP**, **Distribution-Free Uncertainty Quantification via Inductive Conformal Prediction**, **Independent External Transportability Evaluation**, and **Clinical Subgroup Demographic Fairness Auditing**.
 
-> **TRIPOD+AI Statement:** This study strictly adheres to the *Transparent Reporting of a multivariable prediction model of Individual Prognosis Or Diagnosis - Artificial Intelligence (TRIPOD+AI)* reporting guidelines for clinical prognostic and diagnostic models. See the complete checklist in [`results/nhanes_cardiovascular/tripod_ai_checklist.md`](results/nhanes_cardiovascular/tripod_ai_checklist.md).
+> **TRIPOD+AI Reporting Statement:** This study provides a structured adherence checklist mapped against the *Transparent Reporting of a multivariable prediction model of Individual Prognosis Or Diagnosis - Artificial Intelligence (TRIPOD+AI)* reporting recommendations. See the complete mapped checklist in [`results/nhanes_cardiovascular/tripod_ai_checklist.md`](results/nhanes_cardiovascular/tripod_ai_checklist.md).
 
 ---
 
@@ -29,11 +29,11 @@ flowchart TD
         NHANES["CDC NHANES Continuous Survey (11,288 Adults, 11.75% CVD Prevalence)"] --> Features["Engineered Biomarkers: AIP, MAP, TyG, Castelli Ratios, eGFR"]
         Features --> Split["80/20 Stratified Partition (Hold-Out Test Untouched, N=2,258)"]
         Split --> DevTune["Training Partition Internal Split: 75% Dev / 25% Tune"]
-        DevTune --> Lock["Zero-Snooping: Derive & Lock Youden J* Threshold on Training Only"]
+        DevTune --> Lock["Zero-Snooping: Derive & Lock Youden J* Threshold on Training Partition Only"]
     end
     
     subgraph Exp1 ["Pillar 1: Multi-Model Benchmark & Statistical Inference"]
-        Lock --> Benchmark["10 SOTA Models + Stacking Super Learner"]
+        Lock --> Benchmark["10 Baseline Models + Stacking Super Learner (Standard Hyperparameters)"]
         Benchmark --> Bootstrap["1,000-Resample Non-Parametric Bootstrap 95% CIs"]
         Benchmark --> PairedROC["Paired Bootstrap ROC Tests (ΔAUC & p-values) + Friedman Omnibus (p=2.16e-6)"]
     end
@@ -47,11 +47,11 @@ flowchart TD
     end
     
     subgraph Exp4 ["Pillar 4: Uncertainty Quantification"]
-        Lock --> Conformal["Inductive Conformal Prediction: 94.33% Empirical Marginal Coverage (Target: 95%)"]
+        Lock --> Conformal["Inductive Conformal Prediction: 94.33% Marginal Coverage under Exchangeability (Target: 95%)"]
     end
 
-    subgraph Exp5 ["Pillar 5: Locked External Validation"]
-        Lock --> External["Authentic Framingham Heart Study Cohort (N=4,240 Real Patients, Zero Retraining)"]
+    subgraph Exp5 ["Pillar 5: External Transportability"]
+        Lock --> External["Independent External Transportability Evaluation (Framingham Heart Study, N=4,240, Zero Retraining)"]
     end
 
     subgraph Exp6 ["Pillar 6: Clinical Subgroup Fairness"]
@@ -65,6 +65,8 @@ flowchart TD
 
 ### Pillar 1: Model Discrimination & Probability Calibration (80/20 Stratified Test Set, N=2,258)
 All clinical decision thresholds ($\tau^*$) were derived strictly on training partitions via Youden's $J$-index ($J = \text{Sensitivity} + \text{Specificity} - 1$) and locked prior to blind prospective evaluation on the untouched test set. All metric intervals report **1,000-resample non-parametric bootstrap 95% Confidence Intervals** $[\text{Lower}, \text{Upper}]$.
+
+> **Note on Hyperparameters & Nested CV:** The primary benchmark evaluates established algorithmic baselines with clinically regularized standard hyperparameters to provide an unbiased point of reference. An independent **5x5 Nested Stratified Cross-Validation engine with Optuna Bayesian optimization** is implemented in [`src/tuning.py`](src/tuning.py) (`--nested-cv`) to explore tuned models with complete separation of selection and evaluation.
 
 | Algorithm | ROC-AUC [95% CI] | Sensitivity [95% CI] | Specificity [95% CI] | PR-AUC [95% CI] | ECE [95% CI] | Locked Threshold ($\tau^*$) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -88,9 +90,9 @@ All clinical decision thresholds ($\tau^*$) were derived strictly on training pa
 1. **Paired Bootstrap ROC Hypothesis Test (Top Model vs. Next Best Non-Linear Learner):**
    * **Comparison:** Logistic Regression vs. CatBoost
    * **$\Delta\text{AUC}$:** **$+0.73\%$** ($95\%\text{ CI: } [-0.30\%, 1.76\%]$)
-   * **Empirical $p$-value:** **$p = 0.1920$** (Statistically non-significant difference confirmed via 1,000 paired resamples, proving that linear clinical risk scoring remains fully competitive with tree ensembles when supplied with comprehensive physiological biomarker panels).
+   * **Empirical $p$-value:** **$p = 0.1920$** (Statistically non-significant difference confirmed via 1,000 paired resamples, indicating that linear clinical risk scoring remains competitive with tree ensembles when supplied with comprehensive physiological biomarker panels).
 2. **Friedman Omnibus Rank-Sum Test across 5-Fold Stratified Cross-Validation:**
-   * $\chi^2 = 45.018$, **$p = 2.158 \times 10^{-6}$** (Null hypothesis of algorithm equivalence across all models decisively rejected).
+   * $\chi^2 = 45.018$, **$p = 2.158 \times 10^{-6}$** (Null hypothesis of global algorithm equivalence across all 11 models decisively rejected).
 
 #### 5-Fold Stratified Cross-Validation Summary ($N=11,288$):
 | Algorithm | ROC-AUC [95% CI] | Sensitivity [95% CI] | PR-AUC (Mean±Std) | Specificity (Mean±Std) | MCC (Mean) | Brier Score (Mean) |
@@ -134,7 +136,7 @@ Simulates clinical laboratory assay calibration drift and biometric sensor measu
 
 * **Top Empirical Predictors Identified via TreeSHAP:** Chronological Age, Smoking Status, Total Cholesterol, Waist Circumference, Serum Creatinine, Blood Urea Nitrogen (BUN), and Glycated Hemoglobin ($\text{HbA}_{1c}$).
 * **AHA/ACC Guideline Alignment:** Top predictors map directly to classical and emerging cardiometabolic risk pathways (atherogenic dyslipidemia, vascular stiffening, abdominal visceral adiposity, renal microvascular function, and insulin resistance).
-* **Clinical Plausibility Audit Verdict:** **`Plausibility Audit: High Consistency with AHA/ACC Pathophysiology`**. The feature importance ordering reflects genuine cardiovascular risk drivers without evidence of shortcut learning artifacts.
+* **Epistemic Note on Explainability:** TreeSHAP values reflect observational feature attributions within the fitted statistical predictor and must not be conflated with causal biological mechanisms. While the high alignment with AHA/ACC criteria demonstrates consistency with cardiovascular pathophysiology, observational feature importance can be influenced by clinical collinearity.
 
 ---
 
@@ -144,7 +146,7 @@ Rather than presenting uncalibrated deterministic point predictions, the framewo
 
 $$P(Y \in C(X)) \ge 1 - \alpha = 95.0\%$$
 
-> **Clinical Epistemic Note:** This mathematical guarantee provides **marginal statistical coverage strictly under the exchangeability (i.i.d.) hypothesis**. It is not an absolute individual patient diagnostic guarantee. Patients with ambiguous prediction sets $\{0, 1\}$ represent clinically indeterminate cases requiring senior physician review.
+> **Clinical Epistemic Note:** This mathematical guarantee provides **marginal statistical coverage strictly under the exchangeability (i.i.d.) hypothesis across the overall population**. It is not an individual patient diagnostic guarantee, and does not guarantee conditional coverage for small patient subgroups. Patients with ambiguous prediction sets $\{0, 1\}$ represent clinically indeterminate cases recommended for physician review.
 
 | Conformal Metric | Observed Value | Bootstrap [95% CI] | Clinical Interpretation |
 | :--- | :---: | :---: | :--- |
@@ -153,50 +155,66 @@ $$P(Y \in C(X)) \ge 1 - \alpha = 95.0\%$$
 | **Non-Conformity Threshold ($\hat{q}$)** | **0.8419** | — | Calibrated on independent calibration partition ($N=1,853$) |
 | **Mean Prediction Set Size** | **1.470** | — | Efficient set size; majority receive single-class prediction |
 | **Singleton Certainty Rate** | **53.01%** | — | Unambiguous single diagnosis without triage consult required |
-| **Ambiguity Referral Rate** | **46.99%** | — | Indeterminate cases automatically referred to human cardiologist |
+| **Ambiguity Referral Rate** | **46.99%** | — | Indeterminate cases automatically referred to clinician review |
 
 ---
 
-### Pillar 5: Prospective External Validation on the Authentic Framingham Heart Study Cohort ($N=4,240$)
-To rigorously test true prospective transportability across distinct clinical institutions, geography, and study designs, the optimal pipeline trained on CDC NHANES was locked and prospectively evaluated on the **authentic Framingham Heart Study longitudinal cohort** ($N=4,240$ real patients, $644$ true 10-year coronary heart disease events, event rate $15.19\%$) with **zero retraining** and using the **locked clinical threshold** ($\tau^* = 0.470$):
+### Pillar 5: Independent External Transportability Evaluation across Cohorts (Framingham Heart Study Cohort, N=4,240)
+To rigorously evaluate model transportability across distinct clinical institutions, study designs, and geographies, the optimal pipeline trained on CDC NHANES was locked and evaluated on the **authentic Framingham Heart Study longitudinal cohort** ($N=4,240$ real patients, $644$ true 10-year incident coronary heart disease events, event rate $15.19\%$) with **zero retraining** and using the **locked clinical threshold** ($\tau^* = 0.470$):
 
 | Cohort | N Patients | Event Rate | Locked Threshold | ROC-AUC [95% CI] | Sensitivity [95% CI] | Specificity [95% CI] | PR-AUC [95% CI] | ECE [95% CI] | Brier Score [95% CI] |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **CDC NHANES (Internal Test)** | 2,258 | 11.74% | 0.470 | **83.30** [80.80 - 85.77] | 76.95 [71.43 - 82.01] | **75.48** [73.53 - 77.38] | **40.37** [34.54 - 46.65] | **0.2074** [0.1930 - 0.2223] | **0.1594** [0.1490 - 0.1688] |
 | **Framingham Heart Study (External)** | 4,240 | 15.19% | 0.470 | **66.65** [64.52 - 68.82] | **76.99** [73.59 - 80.40] | 45.84 [44.19 - 47.49] | 24.91 [22.41 - 27.76] | 0.3608 [0.3496 - 0.3723] | 0.2712 [0.2649 - 0.2774] |
 
-#### Clinical Epistemic Insights from Real External Validation:
-1. **Preserved Sensitivity Under Domain Shift:** The locked decision threshold ($\tau^* = 0.470$) maintained **$76.99\%$ sensitivity** on the external Framingham cohort (virtually identical to the internal $76.95\%$), confirming that the model reliably flags high-risk patients even across external healthcare cohorts.
-2. **Authentic Generalization Gap:** The observed discrimination drop from internal cross-sectional survey data ($83.30\%$ AUC) to longitudinal 10-year incident CHD follow-up ($66.65\%$ AUC) illustrates the genuine clinical transportability challenge in real-world healthcare AI. This occurs because Framingham measures incident 10-year hard coronary events rather than self-reported cross-sectional composite CVD, and unmeasured extended lab assays (e.g., eGFR, HbA1c, waist circumference) were imputed via the training pipeline median imputer.
-3. **Calibration Drift:** Expected Calibration Error increased from $0.2074$ to $0.3608$, reflecting baseline clinical population divergence and emphasizing that external deployments require recalibration (Platt scaling / isotonic regression) when migrating across healthcare systems.
+#### Clinical Epistemic Insights from Real External Transportability:
+1. **Preserved Sensitivity Under Domain Shift:** The locked decision threshold ($\tau^* = 0.470$) maintained **$76.99\%$ sensitivity** on the external Framingham cohort (closely tracking the internal $76.95\%$), demonstrating that the primary risk ranking identifies high-risk individuals across independent populations.
+2. **Authentic Generalization Gap:** The observed discrimination drop from internal survey data ($83.30\%$ AUC) to longitudinal 10-year incident CHD follow-up ($66.65\%$ AUC) reflects a well-documented clinical transportability challenge in healthcare AI. This stems from:
+   * **Endpoint Divergence:** NHANES measures cross-sectional, self-reported physician-diagnosed composite CVD, whereas Framingham tracks 10-year incident hard coronary heart disease events.
+   * **Biomarker Imputation:** Extended laboratory assays in NHANES (e.g., eGFR, HbA1c, waist circumference) were absent in this Framingham release and imputed using the training pipeline's median values.
+3. **Calibration Drift:** Expected Calibration Error increased from $0.2074$ to $0.3608$, illustrating baseline risk shift and indicating that local recalibration (Platt scaling / isotonic regression) is essential when deploying models across healthcare settings.
 
 ---
 
-### Pillar 6: Clinical Subgroup Fairness & Parity Audit
+### Pillar 6: Clinical Subgroup Demographic Fairness & Parity Audit
 Evaluates demographic equity and diagnostic parity across sensitive patient partitions on the hold-out test set ($N=2,258$) with 1,000-resample bootstrap 95% Confidence Intervals:
 
 | Subgroup Comparison | Subgroup A | Subgroup B | Sensitivity A [95% CI] | Sensitivity B [95% CI] | Equal Opportunity Gap [95% CI] | Specificity Gap | Disparate Impact | Clinical Parity Audit |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Biological Sex** | Female ($N=1,191$) | Male ($N=1,067$) | 63.2% [53.6%, 71.8%] | 87.8% [82.2%, 93.0%] | **24.59%** [14.49%, 35.54%] | 9.59% | 0.645 | **Disparity Observed: Mandates Sex-Calibrated Clinical Thresholds** |
-| **Age Cohort** | Younger $<50$ ($N=1,109$) | Older Adults $\ge 50$ ($N=1,149$) | 7.7% [0.0%, 18.2%] | 84.5% [80.2%, 89.0%] | **76.83%** [65.15%, 86.80% draught] | 51.11% | 0.023 | **Epidemiological Prevalence Disparity: Mandates Age-Stratified Thresholds** |
+| **Biological Sex** | Female ($N=1,191$) | Male ($N=1,067$) | 63.2% [53.6%, 71.8%] | 87.8% [82.2%, 93.0%] | **24.59%** [14.49%, 35.54%] | 9.59% | 0.645 | **Disparity Observed: Indicates Subgroup-Specific Calibration** |
+| **Age Cohort** | Younger $<50$ ($N=1,109$) | Older Adults $\ge 50$ ($N=1,149$) | 7.7% [0.0%, 18.2%] | 84.5% [80.2%, 89.0%] | **76.83%** [65.15%, 86.80%] | 51.11% | 0.023 | **Prevalence Disparity: Warrants Age-Stratified Thresholds** |
 
-> **Clinical Interpretation:** The extreme sensitivity disparity between younger ($<50$) and older ($\ge 50$) patients reflects the steep biological prevalence gradient of cardiovascular disease in the general population ($<1.5\%$ in young adults vs $>20\%$ in older adults). A single population-wide cutoff threshold severely under-diagnoses early-onset CVD in younger patients. In clinical deployment, this empirically proves the mandatory requirement of deploying **age-stratified and sex-stratified decision thresholds** rather than a single population-wide cutoff.
+> **Clinical Interpretation:** The pronounced sensitivity disparity between younger ($<50$) and older ($\ge 50$) patients reflects the steep biological prevalence gradient of cardiovascular disease in the general population ($<1.5\%$ in young adults vs $>20\%$ in older adults). A single population-wide cutoff threshold under-diagnoses early-onset risk in younger adults. This empirically suggests that **age-stratified and sex-calibrated decision thresholds** should be evaluated prior to clinical deployment.
 
 ---
 
-## 📂 Comparative Benchmark Suite Overview
+## 📋 Dataset Provenance & Data Governance
 
-In addition to the flagship CDC NHANES cohort, the repository includes standardized comparative baselines across 5 clinical disease datasets:
+Complete institutional provenance, SAS component files, survey ethics, and endpoint definitions are documented in [`docs/DATASET_PROVENANCE.md`](docs/DATASET_PROVENANCE.md).
 
-| Dataset | Modality / Focus | Samples | Features | Target Clinical Condition |
-| :--- | :--- | :---: | :---: | :--- |
-| **CDC NHANES** | Population Health / Cardiometabolic | 11,288 | 25 | Cardiovascular Disease (Composite CVD) |
-| **Framingham Heart Study** | Longitudinal Cardiovascular Epidemiology | 4,240 | 10 | 10-Year Incident Coronary Heart Disease |
-| **Heart Failure Prediction** | Hemodynamic / Cardiovascular | 918 | 11 | Heart Disease Event |
-| **Stroke Prediction Dataset** | Demographic & Cerebrovascular | 5,110 | 10 | Acute Stroke Occurrence |
-| **Breast Cancer Wisconsin** | FNA Cytology / Morphology | 569 | 30 | Malignant ($1$) vs. Benign ($0$) |
-| **Pima Indians Diabetes** | Metabolic & Insulin Resistance | 768 | 8 | Diabetes Onset |
-| **Chronic Kidney Disease (CKD)**| Renal & Metabolic Panel | 400 | 24 | Chronic Kidney Disease Progression |
+| Dataset | Custodian / Primary Source | Study Design | Sample Size ($N$) | Primary Endpoint |
+| :--- | :--- | :--- | :---: | :--- |
+| **CDC NHANES** | U.S. National Center for Health Statistics (CDC) | Continuous Multistage Survey (Cycles 2015–2018) | 11,288 Adults | Physician-diagnosed composite CVD (`MCQ160B-F`) |
+| **Framingham Heart Study** | NHLBI / Boston University (via Duke Univ.) | Longitudinal Community Cohort (10-Yr Follow-up) | 4,240 Patients | 10-year incident coronary heart disease (`TenYearCHD`) |
+| **Heart Failure** | UCI Machine Learning Repository | Retrospective Hospital Cohort | 918 | In-hospital mortality / heart failure event |
+| **Stroke Prediction** | Kaggle Healthcare Dataset | Clinical & Lifestyle Records | 5,110 | Acute cerebrovascular accident |
+| **Breast Cancer (WDBC)** | UCI Machine Learning Repository | FNA Cytology Morphology | 569 | Malignant vs. benign cytology |
+| **Pima Diabetes** | NIDDK / UCI Repository | Metabolic & Glycemic Screening | 768 | Diabetes onset within 5 years |
+| **Chronic Kidney Disease**| UCI Machine Learning Repository | Hospital Metabolic Panel | 400 | Chronic Kidney Disease progression |
+
+---
+
+## ⚠️ Methodological Limitations & Epistemic Boundaries
+
+In accordance with rigorous clinical reporting practices, this benchmark acknowledges key methodological limitations:
+
+1. **Cross-Sectional vs. Longitudinal Endpoint Divergence:** NHANES primary outcomes are based on self-reported physician diagnoses collected in a cross-sectional survey, which is subject to recall bias and under-reporting compared to prospectively adjudicated clinical registries.
+2. **Missing Assay Imputation in External Transportability:** The Framingham secondary release lacks certain extended metabolic biomarkers present in NHANES (e.g., eGFR, HbA1c, waist circumference). Imputing these via training medians represents an operational compromise reflecting a lower-tier community clinic setting, but inevitably limits external discrimination.
+3. **Observational & Non-Causal Nature of SHAP:** TreeSHAP attributions describe statistical feature importance within the predictive function and must not be interpreted as causal risk factors or clinical treatment targets.
+4. **Marginal vs. Conditional Conformal Coverage:** Conformal prediction guarantees $95\%$ marginal statistical coverage across the overall population under exchangeability; coverage may deviate within specific rare patient sub-strata.
+5. **No Bedside Clinical Trial Deployment:** This study evaluates offline algorithmic transportability, robustness, and calibration. It does not constitute a prospective clinical trial, and models must not be used for direct patient management without prospective clinical evaluation.
+6. **Subgroup Thresholding Needs Local Calibration:** The observed age and sex disparities indicate that single static decision thresholds are inadequate across demographically diverse clinical environments.
+7. **Baseline Hyperparameters vs. Bayesian Optimization:** The main benchmark tables report standard clinically regularized hyperparameters. Automated Optuna Bayesian optimization is provided in [`src/tuning.py`](src/tuning.py) as an optional exploration mode.
 
 ---
 
@@ -213,29 +231,32 @@ Comparative-Analysis-Healthcare/
 │   ├── pima_diabetes_benchmark.py
 │   └── stroke_prediction_benchmark.py
 ├── datasets/                      # Clinical datasets & external cohorts
-│   ├── breast_cancer.csv
 │   ├── external_framingham_cohort.csv # Authentic Framingham (N=4,240)
+│   ├── nhanes_cardiovascular.csv      # Authentic CDC NHANES (N=11,288)
+│   ├── breast_cancer.csv
 │   ├── heart_failure.csv
 │   ├── kidney_disease.csv
-│   ├── nhanes_cardiovascular.csv      # Authentic CDC NHANES (N=11,288)
 │   ├── pima_diabetes.csv
 │   └── stroke_prediction.csv
+├── docs/
+│   └── DATASET_PROVENANCE.md      # Institutional provenance, ethics & schemas
 ├── results/
-│   ├── nhanes_cardiovascular/     # Flagship research figures & empirical metrics
-│   │   ├── benchmark_metrics.csv
-│   │   ├── conformal_prediction.csv
-│   │   ├── cross_validation_metrics.csv
-│   │   ├── demographic_fairness.csv
-│   │   ├── external_validation_metrics.csv
-│   │   ├── paired_roc_bootstrap_test.csv
-│   │   ├── sensor_noise_stress_test.csv
-│   │   ├── shap_feature_importance.csv
-│   │   ├── figure1_discrimination.png
-│   │   ├── figure2_sensor_robustness.png
-│   │   ├── figure3_shap_biomarkers.png
-│   │   └── tripod_ai_checklist.md
+│   └── nhanes_cardiovascular/     # Empirical metrics & 300 DPI figures
+│       ├── benchmark_metrics.csv
+│       ├── conformal_prediction.csv
+│       ├── cross_validation_metrics.csv
+│       ├── demographic_fairness.csv
+│       ├── external_validation_metrics.csv
+│       ├── paired_roc_bootstrap_test.csv
+│       ├── sensor_noise_stress_test.csv
+│       ├── shap_feature_importance.csv
+│       ├── figure1_discrimination.png
+│       ├── figure2_sensor_robustness.png
+│       ├── figure3_shap_biomarkers.png
+│       └── tripod_ai_checklist.md
 ├── scripts/
-│   └── build_real_datasets.py     # Automated ingestion pipeline from CDC & Duke servers
+│   ├── build_real_datasets.py     # Ingestion pipeline from CDC and Duke servers
+│   └── reproduce_benchmarks.py    # Single-command automated reproduction pipeline
 ├── src/                           # Modular clinical ML architecture
 │   ├── __init__.py
 │   ├── conformal.py               # Inductive conformal prediction & ECE
@@ -254,7 +275,9 @@ Comparative-Analysis-Healthcare/
 │   ├── test_benchmarks.py         # Full model & dataset registry tests
 │   ├── test_conformal.py          # Conformal coverage & ECE verification
 │   ├── test_leakage.py            # Strict zero-leakage cross-validation proof
-│   └── test_methodology.py        # Locked threshold, bootstrap CIs & paired tests
+│   ├── test_methodology.py        # Locked threshold, bootstrap CIs & paired tests
+│   └── test_provenance.py         # Dataset authenticity & zero synthetic fallback tests
+├── Makefile                       # Standard workflow commands
 ├── pyproject.toml                 # Package configuration
 ├── requirements.txt               # Fully pinned dependencies (== versions)
 ├── run_benchmark.py               # Master CLI benchmark runner
@@ -272,24 +295,37 @@ cd Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics
 pip install -r requirements.txt
 ```
 
-### 2. Ingest Real-World Datasets Directly from CDC Servers
+### 2. Single-Command Deterministic Reproduction
 ```bash
-# Downloads and merges authentic CDC NHANES survey cycles and Duke Framingham cohort:
-python scripts/build_real_datasets.py
+# Complete automated reproduction (dataset verification, benchmark, artifact validation):
+python scripts/reproduce_benchmarks.py
+
+# Or using Makefile:
+make reproduce
 ```
 
-### 3. Run the Flagship CDC NHANES Benchmark
+### 3. Ingest Datasets Directly from CDC and Duke Servers
 ```bash
-# Execute full clinical study protocol (Hold-Out, CV, Conformal, Noise, SHAP, External Framingham):
-python run_benchmark.py --dataset nhanes_cardiovascular --cv 5
+python scripts/build_real_datasets.py
+# or: make data
+```
+
+### 4. Run Benchmark Protocols Manually
+```bash
+# Standard 5-fold cross-validation with seed 42:
+python run_benchmark.py --dataset nhanes_cardiovascular --cv 5 --seed 42
 
 # Fast smoke run with fewer tree iterations:
-python run_benchmark.py --dataset nhanes_cardiovascular --fast
+python run_benchmark.py --dataset nhanes_cardiovascular --fast --seed 42
+
+# 5x5 Nested Stratified Cross-Validation with Optuna Bayesian Optimization:
+python run_benchmark.py --dataset nhanes_cardiovascular --nested-cv
 ```
 
-### 4. Run Automated Unit & Integrity Test Suite
+### 5. Run Automated Test Suite
 ```bash
 python -m pytest tests/ -v
+# or: make test
 ```
 
 ---

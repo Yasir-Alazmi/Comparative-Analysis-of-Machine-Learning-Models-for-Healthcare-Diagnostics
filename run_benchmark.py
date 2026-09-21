@@ -51,7 +51,8 @@ def run_benchmark_dataset(
     run_conformal: bool = True,
     run_robustness: bool = True,
     run_shap: bool = True,
-    no_plot: bool = False
+    no_plot: bool = False,
+    seed: int = 42,
 ):
     meta = DATASET_REGISTRY[key]
     print("\n" + "=" * 95)
@@ -68,13 +69,13 @@ def run_benchmark_dataset(
     print(f"[*] Target Condition: {meta['target_name']} | Event Rate (Prevalence): {np.mean(y) * 100:.2f}%")
 
     print("[*] Assembling 10 Machine Learning Models & Stacking Super Learner...")
-    models = build_models(random_state=42, fast_mode=fast, include_stacking=True)
+    models = build_models(random_state=seed, fast_mode=fast, include_stacking=True)
     pipelines = build_clinical_pipelines(
         models=models,
         num_cols=num_cols,
         cat_cols=cat_cols,
         use_smote=meta["use_smote"],
-        random_state=42
+        random_state=seed
     )
 
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", key)
@@ -170,9 +171,9 @@ def run_benchmark_dataset(
         df_nested_sum.to_csv(os.path.join(out_dir, "nested_cv_summary.csv"))
         df_nested_folds.to_csv(os.path.join(out_dir, "nested_cv_outer_folds.csv"), index=False)
 
-    # 4. Locked External Prospective Cohort Validation (Framingham Cohort for NHANES)
+    # 4. Independent External Transportability Evaluation across Cohorts (Framingham Heart Study Cohort)
     if key == "nhanes_cardiovascular":
-        print("\n[*] [4/7] Prospective External Validation on Independent Cohort (Authentic Framingham Heart Study, Locked Threshold)...")
+        print("\n[*] [4/7] Independent External Transportability Evaluation across Cohorts (Authentic Framingham Heart Study, Locked Threshold)...")
         X_ext, y_ext = load_external_validation_cohort(n_samples=None, random_state=1337)
         top_pipe = pipelines[best_model_name]
         top_pipe.fit(X_tr_hold, y_tr_hold)
@@ -186,10 +187,10 @@ def run_benchmark_dataset(
         )
         print("-" * 95)
         print(f"External Cohort N: {ext_dict['N_Patients']} | Prevalence: {ext_dict['Event_Rate (%)']}% | Locked Thresh: {ext_dict['Locked_Threshold']}")
-        print(f"Prospective External ROC-AUC: {ext_dict['ROC-AUC [95% CI]']}")
-        print(f"Prospective External Sensitivity: {ext_dict['Sensitivity [95% CI]']}")
-        print(f"Prospective External Specificity: {ext_dict['Specificity [95% CI]']}")
-        print(f"Prospective External ECE: {ext_dict['ECE [95% CI]']} (Brier: {ext_dict['Brier [95% CI]']})")
+        print(f"External Transportability ROC-AUC: {ext_dict['ROC-AUC [95% CI]']}")
+        print(f"External Transportability Sensitivity: {ext_dict['Sensitivity [95% CI]']}")
+        print(f"External Transportability Specificity: {ext_dict['Specificity [95% CI]']}")
+        print(f"External Transportability ECE: {ext_dict['ECE [95% CI]']} (Brier: {ext_dict['Brier [95% CI]']})")
         print("-" * 95)
         df_ext.to_csv(os.path.join(out_dir, "external_validation_metrics.csv"), index=False)
 
@@ -284,23 +285,29 @@ def main():
     parser.add_argument("--cv", type=int, default=0, help="Run k-fold cross-validation (e.g. --cv 5)")
     parser.add_argument("--nested-cv", action="store_true", help="Run 5x5 Nested Stratified Cross-Validation with inner Bayesian optimization")
     parser.add_argument("--fast", action="store_true", help="Fast smoke run with fewer estimators")
+    parser.add_argument("--seed", type=int, default=42, help="Global random seed for deterministic scientific reproducibility (default: 42)")
+    parser.add_argument("--reproduce", action="store_true", help="Run full reproducible benchmark suite reproducing published metrics")
     parser.add_argument("--conformal", action="store_true", default=True, help="Run Inductive Conformal Prediction")
     parser.add_argument("--robustness", action="store_true", default=True, help="Run Simulated Measurement Perturbation Stress-Test")
     parser.add_argument("--shap", action="store_true", default=True, help="Run SHAP Explainability & Clinical Audit")
     parser.add_argument("--no-plot", action="store_true", help="Skip saving plot figures")
     args = parser.parse_args()
 
+    cv_folds = 5 if args.reproduce else args.cv
+    fast_mode = False if args.reproduce else args.fast
+
     targets = list(DATASET_REGISTRY.keys()) if args.dataset == "all" else [args.dataset]
     for t in targets:
         run_benchmark_dataset(
             key=t,
-            cv_folds=args.cv,
+            cv_folds=cv_folds,
             run_nested_cv=args.nested_cv,
-            fast=args.fast,
+            fast=fast_mode,
             run_conformal=args.conformal,
             run_robustness=args.robustness,
             run_shap=args.shap,
-            no_plot=args.no_plot
+            no_plot=args.no_plot,
+            seed=args.seed,
         )
 
     print("\n" + "=" * 95)

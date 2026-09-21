@@ -1,2 +1,2 @@
 Cohort,N_Patients,Event_Rate (%),Locked_Threshold,ROC-AUC (%),ROC-AUC [95% CI],PR-AUC (%),PR-AUC [95% CI],Sensitivity (%),Sensitivity [95% CI],Specificity (%),Specificity [95% CI],Balanced Acc (%),MCC,Brier Score,Brier [95% CI],ECE,ECE [95% CI]
-"Real Framingham Heart Study (N=4,240 Longitudinal Follow-up)",4240,15.19,0.47,66.62,66.65 [64.52 - 68.82],24.7,24.91 [22.41 - 27.76],77.02,76.99 [73.59 - 80.40],45.83,45.84 [44.19 - 47.49],61.42,0.166,0.2714,0.2712 [0.2649 - 0.2774],0.361,0.3608 [0.3496 - 0.3723]
+"Real Framingham Heart Study (N=4,240 Longitudinal Follow-up)",4240,15.19,0.47,61.45,61.45 [59.22 - 63.58],21.13,21.34 [19.15 - 23.84],88.35,88.30 [85.67 - 90.84],22.27,22.30 [21.02 - 23.66],55.31,0.094,0.5329,0.5326 [0.5214 - 0.5442],0.5887,0.5886 [0.5758 - 0.6026]

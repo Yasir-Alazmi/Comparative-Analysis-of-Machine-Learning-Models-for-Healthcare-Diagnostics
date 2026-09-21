@@ -15,18 +15,12 @@ from src.features import engineer_clinical_features
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "datasets")
 
 
-def generate_curated_nhanes_cohort(n_samples: int = 10500, random_state: int = 42) -> pd.DataFrame:
+def generate_synthetic_demo_cohort(n_samples: int = 1000, random_state: int = 42) -> pd.DataFrame:
     """
-    Generates a realistic, statistically grounded CDC NHANES Adult Cardiovascular Cohort
-    based on official CDC NHANES empirical distribution parameters (2017-2020 pre-pandemic).
-    
-    Includes authentic multivariate correlations between:
-    - Age, Sex, Race/Ethnicity, Smoking
-    - SBP, DBP, BMI, Waist Circumference
-    - Lipids: Total Cholesterol, HDL, LDL, Triglycerides
-    - Glycemic: Fasting Glucose, HbA1c
-    - Renal: Serum Creatinine, Blood Urea Nitrogen
-    - Outcome: CVD_Diagnosis (Cardiovascular Disease composite: CHD, Angina, Myocardial Infarction, Stroke)
+    [OFFLINE CI / SMOKE-TEST ONLY]
+    WARNING: DO NOT USE FOR SCIENTIFIC BENCHMARKING OR PUBLICATION CLAIMS.
+    Generates a synthetic mock tabular cohort strictly for automated offline testing when
+    remote CDC SAS XPT data are unavailable in CI sandboxes.
     """
     rng = np.random.default_rng(random_state)
 
@@ -116,10 +110,18 @@ def generate_curated_nhanes_cohort(n_samples: int = 10500, random_state: int = 4
 def load_nhanes_cardiovascular(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Loads authentic CDC NHANES Continuous Survey Cardiovascular Cohort (Cycles 2015-2018, N=11,288 adult participants).
-    If local CSV exists, reads it; otherwise acquires and merges the authentic CDC data.
+    Strictly loads authentic CDC survey data. Raises FileNotFoundError if missing to prevent silent synthetic fallbacks.
     """
+    default_nhanes = os.path.join(DEFAULT_DATA_DIR, "nhanes_cardiovascular.csv")
+    if data_path is not None and not os.path.exists(data_path):
+        raise FileNotFoundError(
+            f"Authentic CDC NHANES dataset not found at '{data_path}'. "
+            "To ensure strict scientific reproducibility and claim integrity, no synthetic data fallback is permitted. "
+            "Please acquire the authentic CDC survey files by executing: python scripts/build_real_datasets.py"
+        )
+
     if data_path is None:
-        data_path = os.path.join(DEFAULT_DATA_DIR, "nhanes_cardiovascular.csv")
+        data_path = default_nhanes
 
     if os.path.exists(data_path):
         df = pd.read_csv(data_path)
@@ -127,10 +129,12 @@ def load_nhanes_cardiovascular(data_path: str = None) -> Tuple[pd.DataFrame, pd.
         try:
             from scripts.build_real_datasets import build_real_nhanes_cohort
             df = build_real_nhanes_cohort()
-        except Exception:
-            os.makedirs(os.path.dirname(data_path), exist_ok=True)
-            df = generate_curated_nhanes_cohort(n_samples=10500, random_state=42)
-            df.to_csv(data_path, index=False)
+        except Exception as exc:
+            raise FileNotFoundError(
+                f"Authentic CDC NHANES dataset not found at '{data_path}' and automated ingestion failed ({exc}). "
+                "To ensure strict scientific reproducibility and claim integrity, no synthetic data fallback is permitted. "
+                "Please acquire the authentic CDC survey files by executing: python scripts/build_real_datasets.py"
+            ) from exc
 
     target_col = "CVD_Diagnosis"
     y = df[target_col]
@@ -145,10 +149,17 @@ def load_nhanes_cardiovascular(data_path: str = None) -> Tuple[pd.DataFrame, pd.
 def load_external_validation_cohort(data_path: str = None, n_samples: int = None, random_state: int = 42) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Loads the authentic Framingham Heart Study longitudinal cohort (N=4,240 real human patients with 10-year CVD outcome)
-    to test model prospective transportability across distinct clinical sites without refitting.
+    to evaluate independent model transportability across cohorts without refitting.
+    
+    Target Endpoint: TenYearCHD (10-year incident coronary heart disease event).
+    Missing laboratory assays are harmonized and imputed via the training pipeline median imputer.
     """
+    default_framingham = os.path.join(DEFAULT_DATA_DIR, "external_framingham_cohort.csv")
+    if data_path is not None and not os.path.exists(data_path):
+        raise FileNotFoundError(f"Authentic Framingham external cohort not found at '{data_path}'.")
+
     if data_path is None:
-        data_path = os.path.join(DEFAULT_DATA_DIR, "external_framingham_cohort.csv")
+        data_path = default_framingham
 
     if os.path.exists(data_path):
         df = pd.read_csv(data_path)
@@ -156,23 +167,11 @@ def load_external_validation_cohort(data_path: str = None, n_samples: int = None
         try:
             from scripts.build_real_datasets import build_real_framingham_cohort
             df = build_real_framingham_cohort()
-        except Exception:
-            framingham_url = "https://raw.githubusercontent.com/sta210-sp20/datasets/master/framingham.csv"
-            df_raw = pd.read_csv(framingham_url)
-            df = pd.DataFrame({
-                "Age": df_raw["age"].astype(float),
-                "Sex": np.where(df_raw["male"] == 1, "Male", "Female"),
-                "Smoking": np.where(df_raw["currentSmoker"] == 1, "Current", "Never"),
-                "BMI": df_raw["BMI"],
-                "Systolic_BP": df_raw["sysBP"],
-                "Diastolic_BP": df_raw["diaBP"],
-                "Total_Cholesterol": df_raw["totChol"],
-                "Fasting_Glucose": df_raw["glucose"],
-                "HeartRate": df_raw["heartRate"],
-                "CVD_Diagnosis": df_raw["TenYearCHD"].astype(int)
-            })
-            os.makedirs(os.path.dirname(data_path), exist_ok=True)
-            df.to_csv(data_path, index=False)
+        except Exception as exc:
+            raise FileNotFoundError(
+                f"Authentic Framingham external cohort not found at '{data_path}' ({exc}). "
+                "Please execute: python scripts/build_real_datasets.py"
+            ) from exc
 
     if n_samples is not None and n_samples < len(df):
         df = df.sample(n=n_samples, random_state=random_state) if random_state is not None else df.iloc[:n_samples]

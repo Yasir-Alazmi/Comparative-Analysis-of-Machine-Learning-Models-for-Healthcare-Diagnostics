@@ -350,8 +350,9 @@ def evaluate_locked_external_validation(
     random_state: int = 42,
 ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """
-    Evaluates a frozen, locked clinical pipeline prospectively on an independent external validation cohort
-    (e.g., authentic Framingham Heart Study cohort) with zero retraining and zero threshold adjustment.
+    Evaluates a frozen, locked clinical pipeline for independent external transportability
+    on an independent cohort (e.g., authentic Framingham Heart Study cohort) with zero retraining
+    and zero threshold adjustment.
 
     Calculates discrimination, calibration drift, and 1,000-resample non-parametric bootstrap 95% CIs.
     """
