@@ -351,15 +351,32 @@ def evaluate_locked_external_validation(
 ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """
     Evaluates a frozen, locked clinical pipeline prospectively on an independent external validation cohort
-    (e.g., Framingham Heart Study simulation) with zero retraining and zero threshold adjustment.
+    (e.g., authentic Framingham Heart Study cohort) with zero retraining and zero threshold adjustment.
 
     Calculates discrimination, calibration drift, and 1,000-resample non-parametric bootstrap 95% CIs.
     """
     y_ext_arr = np.asarray(y_ext)
+
+    # Harmonize feature columns with the training pipeline's expected feature space
+    X_ext_aligned = X_ext.copy()
+    expected_cols = None
+    if hasattr(pipeline, "feature_names_in_"):
+        expected_cols = list(pipeline.feature_names_in_)
+    elif hasattr(pipeline, "named_steps") and "preprocessor" in pipeline.named_steps:
+        prep = pipeline.named_steps["preprocessor"]
+        if hasattr(prep, "feature_names_in_"):
+            expected_cols = list(prep.feature_names_in_)
+
+    if expected_cols is not None:
+        for col in expected_cols:
+            if col not in X_ext_aligned.columns:
+                X_ext_aligned[col] = np.nan
+        X_ext_aligned = X_ext_aligned[expected_cols]
+
     if hasattr(pipeline, "predict_proba"):
-        y_proba = pipeline.predict_proba(X_ext)[:, 1]
+        y_proba = pipeline.predict_proba(X_ext_aligned)[:, 1]
     else:
-        y_proba = pipeline.predict(X_ext)
+        y_proba = pipeline.predict(X_ext_aligned)
 
     y_pred = (y_proba >= locked_threshold).astype(int)
 
@@ -377,7 +394,7 @@ def evaluate_locked_external_validation(
     )
 
     metrics = {
-        "Cohort": "External Prospective Cohort (Framingham Simulation)",
+        "Cohort": "Real Framingham Heart Study (N=4,240 Longitudinal Follow-up)",
         "N_Patients": len(y_ext),
         "Event_Rate (%)": round(float(np.mean(y_ext_arr) * 100), 2),
         "Locked_Threshold": locked_threshold,

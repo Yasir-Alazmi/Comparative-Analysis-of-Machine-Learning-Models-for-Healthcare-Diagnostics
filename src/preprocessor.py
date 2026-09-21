@@ -38,7 +38,7 @@ def build_leakage_free_pipeline(
     """
     num_steps = []
     if len(num_cols) > 0:
-        num_steps.append(("imputer", KNNImputer(n_neighbors=5)))
+        num_steps.append(("imputer", SimpleImputer(strategy="median")))
         num_steps.append(("scaler", RobustScaler()))
     num_pipe = ImbPipeline(num_steps) if len(num_steps) > 0 else "drop"
 

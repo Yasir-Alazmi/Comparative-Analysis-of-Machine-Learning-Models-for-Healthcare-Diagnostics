@@ -17,9 +17,9 @@ import os
 import sys
 import argparse
 
-# Force UTF-8 on Windows console
+# Force UTF-8 and line buffering on Windows console
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
 
 import numpy as np
 import pandas as pd
@@ -172,8 +172,8 @@ def run_benchmark_dataset(
 
     # 4. Locked External Prospective Cohort Validation (Framingham Cohort for NHANES)
     if key == "nhanes_cardiovascular":
-        print("\n[*] [4/7] Prospective External Validation on Independent Cohort (Framingham Simulation, Locked Threshold)...")
-        X_ext, y_ext = load_external_validation_cohort(n_samples=2500, random_state=1337)
+        print("\n[*] [4/7] Prospective External Validation on Independent Cohort (Authentic Framingham Heart Study, Locked Threshold)...")
+        X_ext, y_ext = load_external_validation_cohort(n_samples=None, random_state=1337)
         top_pipe = pipelines[best_model_name]
         top_pipe.fit(X_tr_hold, y_tr_hold)
         df_ext, ext_dict = evaluate_locked_external_validation(
