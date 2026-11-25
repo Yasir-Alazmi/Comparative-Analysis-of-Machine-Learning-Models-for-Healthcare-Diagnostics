@@ -148,6 +148,7 @@ def run_benchmark_dataset(
         friedman_res = compute_friedman_test(df_raw_folds)
         print(f"[+] Friedman Omnibus Test: Chi-Square = {friedman_res['Friedman_Statistic']}, p-value = {friedman_res['P_Value']:.4e}")
         print(f"[+] Statistical Significance: {friedman_res['Statistically_Significant']}")
+        pd.DataFrame([friedman_res]).to_csv(os.path.join(out_dir, "friedman_test.csv"), index=False)
 
     # 3. 5x5 Nested Stratified Cross-Validation (Unbiased Selection & Assessment)
     if run_nested_cv:

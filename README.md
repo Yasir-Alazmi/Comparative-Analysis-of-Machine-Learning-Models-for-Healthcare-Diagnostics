@@ -15,7 +15,7 @@ This project compares 11 classifiers and a stacking ensemble for predicting card
 
 **Data.** The main data is CDC NHANES 2015–2018: n = 11,288 adults, with 11.75% CVD prevalence. It is split 80/20, and the test set (n = 2,258) is used only for final evaluation. The decision threshold is fixed on the training data (Youden J) before the test set is touched. The Framingham Heart Study (n = 4,240) is used only for external validation.
 
-Every number below is read from a committed file under [`results/nhanes_cardiovascular/`](results/nhanes_cardiovascular/). They were last reproduced on 2026-11-25 with `python scripts/reproduce_benchmarks.py` (seed 42).
+Every number below is read from a committed file under [`results/nhanes_cardiovascular/`](results/nhanes_cardiovascular/). They were last reproduced on 2026-11-25 with `python scripts/reproduce_benchmarks.py` (seed 42). The tree-model figures can shift slightly between library builds and machines, even with the same seed; a re-run changed the runner-up model from CatBoost to Random Forest. Logistic regression stayed first.
 
 > Research project. Not validated for clinical use.
 
@@ -56,9 +56,11 @@ Every number below is read from a committed file under [`results/nhanes_cardiova
 | Neural Net (MLP) | 77.45% ± 1.95% | 51.66% ± 4.61% | 84.60% ± 1.38% | 32.60% ± 3.92% | 0.294 | 0.1417 |
 | KNN | 69.20% ± 0.79% | 53.62% ± 1.81% | 76.65% ± 1.04% | 22.07% ± 0.78% | 0.22 | 0.1926 |
 
-A Friedman test across the folds rejects the hypothesis that all models perform the same (χ² = 46.36, p = 1.2 × 10⁻⁶).
+A Friedman test across the folds rejects the hypothesis that all models perform the same (χ² = 46.36, p = 1.2 × 10⁻⁶). This value was printed by the 2026-11-25 run. From the next run on it is also saved, to `friedman_test.csv`.
 
 ### Robustness to measurement noise (logistic regression)
+
+This test classifies at the default 0.5 probability cut-off, not the locked 0.47 threshold. That is why its baseline sensitivity (75.47) differs from the main table (76.95).
 
 | Gaussian noise on continuous features | ROC-AUC [95% CI] | Sensitivity | AUC retained |
 |---|---|---|---|
