@@ -9,7 +9,7 @@ description = "Comparative Analysis of 10 Machine Learning Models for Healthcare
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Yasir Alazmi" }]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.24.0",
     "pandas>=2.0.0",
