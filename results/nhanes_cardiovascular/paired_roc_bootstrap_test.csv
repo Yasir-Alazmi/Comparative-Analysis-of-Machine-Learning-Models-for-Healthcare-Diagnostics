@@ -1,2 +1,2 @@
 Model_A,Model_B,Mean_Delta_AUC (%),Delta_AUC_95_CI,P_Value,Statistically_Significant
-Logistic Regression,CatBoost,0.73,"[-0.30%, 1.76%]",0.192,False
+Logistic Regression,Random Forest,0.92,"[-0.29%, 2.11%]",0.142,False
