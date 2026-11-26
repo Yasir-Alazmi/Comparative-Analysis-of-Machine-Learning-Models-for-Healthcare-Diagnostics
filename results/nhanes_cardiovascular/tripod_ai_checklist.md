@@ -15,14 +15,14 @@
 | | 7b | Detail handling of continuous predictors and physiological derived ratios. | YES | Section 2.4 |
 | **Methods - Sample Size** | 8 | Report cohort sample size ($N \ge 10,000$) and event rate (positive cases). | YES | Section 2.5 |
 | **Methods - Missing Data** | 9 | Detail missing data mechanisms and zero-leakage KNNImputer specification. | YES | Section 2.6 |
-| **Methods - AI Modeling** | 10a | Fully describe 10 ML architectures, ensembling mechanisms, and Optuna tuning. | YES | Section 3.1 |
+| **Methods - AI Modeling** | 10a | Fully describe the 11 models (10 classifiers and a stacking ensemble) and optional Optuna tuning. | YES | Section 3.1 |
 | | 10b | Detail data splitting protocol (5x5 Nested Stratified Cross-Validation). | YES | Section 3.2 |
 | | 10c | Specify inductive conformal prediction ($1 - lpha = 0.95$) coverage guarantees. | YES | Section 3.3 |
-| **Methods - Evaluation** | 11 | Define discrimination, Brier score, ECE, sensor perturbation, and Friedman tests. | YES | Section 3.4 |
+| **Methods - Evaluation** | 11 | Define discrimination, Brier score, ECE, simulated noise perturbation, and Friedman tests. | YES | Section 3.4 |
 | **Results - Participants** | 12 | Table 1: Baseline clinical, demographic, and hemodynamic characteristics. | YES | Table 1 |
 | **Results - Performance** | 13a | Model discrimination (ROC-AUC, PR-AUC, Sensitivity, Specificity, MCC). | YES | Table 2 |
 | | 13b | Calibration curves and Expected Calibration Error (ECE) quantification. | YES | Figure 3 |
-| **Results - Stress-Testing**| 14 | Degradation under 0% to 20% simulated laboratory sensor drift. | YES | Figure 2 |
+| **Results - Stress-Testing**| 14 | Degradation under 0% to 20% simulated Gaussian noise on numeric features. | YES | Figure 2 |
 | **Results - Explainability**| 15 | Global and local SHAP feature attributions cross-referenced with AHA/ACC guidelines. | YES | Figure 4 |
 | **Discussion** | 16 | Interpretation of findings in light of clinical guidelines and existing literature. | YES | Section 4.1 |
 | **Limitations** | 17 | Discuss cross-sectional nature, external validity, and compute constraints. | YES | Section 4.3 |

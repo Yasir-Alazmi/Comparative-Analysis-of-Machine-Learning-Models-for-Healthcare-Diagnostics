@@ -87,3 +87,17 @@ Data are programmatically fetched in official SAS transport format (`.XPT`) dire
 To guarantee scientific integrity and eliminate any risk of artificial results:
 1. **Zero Synthetic Benchmarking:** In-silico data generation (`generate_synthetic_demo_cohort`) is strictly quarantined for offline CI smoke tests where remote CDC servers cannot be reached.
 2. **Explicit Failure Mode:** If authentic CDC files or Framingham cohorts are missing on disk, the loader immediately raises an explicit `FileNotFoundError` rather than silently generating synthetic samples.
+
+---
+
+## 5. Licences and Redistribution
+
+The repository's MIT License covers the code only. It does not cover the datasets.
+
+| Dataset | Terms found | Source |
+| :--- | :--- | :--- |
+| **CDC NHANES 2015–2018** | NCHS offers its survey data files "for public-use, with some restrictions": use for statistical analysis and reporting only, make no attempt to identify any person or establishment, and do not link the data with individually identifiable data. CDC's general policy also states that most CDC web information "is in the public domain", with attribution to the agency required. | [NCHS Data User Agreement](https://www.cdc.gov/nchs/policy/data-user-agreement.html); [CDC: Use of Agency Materials](https://www.cdc.gov/other/agencymaterials.html) |
+| **Framingham teaching extract** | **Unclear.** The Duke course repository the file is fetched from has no licence file, and its README states no terms of use or redistribution. No original licence for this extract could be found. | [sta210-sp20/datasets](https://github.com/sta210-sp20/datasets) |
+| **Benchmark datasets** (heart failure, stroke, breast cancer, Pima diabetes, chronic kidney disease) | Not verified in this repository. Check the terms on each host (UCI ML Repository, Kaggle) before reuse. | see Section 3 |
+
+`datasets/external_framingham_cohort.csv` is committed only so the published results can be reproduced. Because its redistribution terms are unclear, anyone reusing it should obtain it from the source (`make data` downloads it again) and check the terms themselves.

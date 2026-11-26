@@ -1,7 +1,7 @@
 """
 Simulated Measurement & Assay Perturbation Stress-Testing Module.
 Features:
-1. Simulated Clinical Laboratory Assay & Biometric Perturbation Drift (0% to 20% Gaussian noise)
+1. Simulated measurement noise: 0% to 20% Gaussian noise on numeric features (not real sensor drift)
 2. Missing Clinical Feature Stress-Test (simulating resource-constrained rural clinics)
 3. Multi-Seed Generalization Stability across 10 distinct random initializations
 """
@@ -24,8 +24,9 @@ def evaluate_sensor_noise_drift(
     random_state: int = 42
 ) -> pd.DataFrame:
     """
-    Simulates clinical laboratory instrument and biometric measurement perturbation drift
-    by injecting Gaussian noise into continuous clinical covariates of test subjects.
+    Simulates measurement noise by adding zero-mean Gaussian noise to the numeric
+    features of the test set. The noise SD is `noise` times each feature's test-set SD.
+    (The function name is kept for backward compatibility; this is not real sensor drift.)
     Computes point estimates and 1,000-resample bootstrap 95% Confidence Intervals.
     """
     pipeline.fit(X_train, y_train)

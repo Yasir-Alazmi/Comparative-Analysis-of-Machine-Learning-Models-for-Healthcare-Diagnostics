@@ -139,7 +139,7 @@ def render_shap_summary_plot(
         ax.text(w + 0.005, bar.get_y() + bar.get_height() / 2.0, f"{w:.3f}",
                 va="center", ha="left", fontsize=8, color="#1D3557", fontweight="bold")
 
-    ax.set_xlabel("Mean |SHAP Value| (Average Impact on Diagnostic Output)", fontsize=11, fontweight="bold")
+    ax.set_xlabel("Mean |SHAP value| (impact on model output, log-odds for tree models)", fontsize=11, fontweight="bold")
     ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)

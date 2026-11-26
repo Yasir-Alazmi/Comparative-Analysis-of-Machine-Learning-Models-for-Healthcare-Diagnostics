@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "healthcare-ml-benchmarks"
 version = "1.0.0"
-description = "Comparative Analysis of 10 Machine Learning Models for Healthcare Diagnostics across 5 Clinical Datasets"
+description = "Cardiovascular risk models (10 classifiers and a stacking ensemble) on CDC NHANES, with external validation on Framingham"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Yasir Alazmi" }]
@@ -34,8 +34,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics"
-Repository = "https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics"
+Homepage = "https://github.com/Yasir-Alazmi/cardiovascular-risk-external-validation"
+Repository = "https://github.com/Yasir-Alazmi/cardiovascular-risk-external-validation"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

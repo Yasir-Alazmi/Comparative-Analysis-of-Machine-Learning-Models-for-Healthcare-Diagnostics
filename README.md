@@ -1,13 +1,26 @@
 # Cardiovascular risk models on CDC NHANES, with external validation on Framingham
 
-[![CI](https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics/actions/workflows/ci.yml/badge.svg)](https://github.com/Yasir-Alazmi/Comparative-Analysis-of-Machine-Learning-Models-for-Healthcare-Diagnostics/actions)
+[![CI](https://github.com/Yasir-Alazmi/cardiovascular-risk-external-validation/actions/workflows/ci.yml/badge.svg)](https://github.com/Yasir-Alazmi/cardiovascular-risk-external-validation/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-This project compares 11 classifiers and a stacking ensemble for predicting cardiovascular disease from routine clinical measurements. It then checks the models beyond a single accuracy number:
+This project compares 11 models (10 classifiers and a stacking ensemble) for predicting cardiovascular disease from routine clinical measurements, then tests the best one on a different cohort without retraining.
+
+![Logistic regression ranks first on the NHANES test set (ROC-AUC 83.30) but drops to 61.45 on Framingham](results/nhanes_cardiovascular/figure0_summary.png)
+
+*Drawn by [`scripts/plot_summary.py`](scripts/plot_summary.py) from the committed CSVs only.*
+
+**Key findings**
+- Plain logistic regression has the best ROC-AUC (83.30 [80.80–85.77]); it is not significantly better than the runner-up, Random Forest (paired bootstrap p = 0.142).
+- Transported unchanged to Framingham (n = 4,240), its ROC-AUC falls to 61.45 and specificity to 22.30: the model does not transfer across cohort designs.
+- One global threshold gives 63.2% sensitivity for women vs 87.8% for men; subgroup calibration would be needed before any use.
+
+## What is checked
+
+The models are checked beyond a single accuracy number:
 
 - 1,000-resample bootstrap confidence intervals, and a paired bootstrap test between the top two models;
 - 5-fold stratified cross-validation with a Friedman test;
-- robustness to measurement noise;
+- robustness to simulated measurement noise;
 - SHAP feature attributions;
 - conformal prediction sets;
 - a sex and age fairness check;
@@ -60,9 +73,9 @@ A Friedman test across the folds rejects the hypothesis that all models perform 
 
 ### Robustness to measurement noise (logistic regression)
 
-This test classifies at the default 0.5 probability cut-off, not the locked 0.47 threshold. That is why its baseline sensitivity (75.47) differs from the main table (76.95).
+This is simulated noise, not real sensor or calibration drift. Gaussian noise with mean 0 and SD equal to the stated percentage of each numeric feature's test-set SD is added to the test set only. The test classifies at the default 0.5 probability cut-off, not the locked 0.47 threshold. That is why its baseline sensitivity (75.47) differs from the main table (76.95).
 
-| Gaussian noise on continuous features | ROC-AUC [95% CI] | Sensitivity | AUC retained |
+| Gaussian noise on numeric features (SD as % of feature SD) | ROC-AUC [95% CI] | Sensitivity | AUC retained |
 |---|---|---|---|
 | +0% Gaussian Noise | 83.28 [80.80%, 85.77%] | 75.47 | 100.0% |
 | +5% Gaussian Noise | 83.01 [80.44%, 85.50%] | 73.58 | 99.7% |
@@ -72,7 +85,7 @@ This test classifies at the default 0.5 probability cut-off, not the locked 0.47
 
 ### Feature attributions (SHAP, mean absolute value)
 
-The top five features: Age (1.54), Smoking_Never (0.41), Total_Cholesterol (0.29), Sex_Male (0.29), Race_Non-Hispanic White (0.24). These are statistical attributions, not causal effects.
+TreeSHAP on the XGBoost model, in log-odds units. The top five features: Age (1.54), Smoking_Never (0.41), Total_Cholesterol (0.29), Sex_Male (0.29), Race_Non-Hispanic White (0.24). These are statistical attributions, not causal effects.
 
 ### Conformal prediction
 
@@ -127,9 +140,17 @@ Other commands:
 - `make data` downloads the datasets again from CDC and Duke.
 - `make smoke` runs a fast check.
 - `python run_benchmark.py --dataset nhanes_cardiovascular --nested-cv` runs nested CV with Optuna.
+- `python scripts/plot_summary.py` redraws the summary figure from the committed CSVs.
+- `python scripts/robustness_check.py --dataset breast_cancer --fast` runs a standalone CV, multi-seed and noise check on one dataset.
 
 ## Author
 
-Yasir Alazmi, B.Sc. Artificial Intelligence, University of Hail (expected January 2027). I made the design and the evaluation choices and reviewed all of the code. Parts of the code were written with AI coding assistants, then reviewed and tested.
+Yasir Alazmi. AI / ML engineer. I made the design and the evaluation choices and reviewed all of the code. Parts of the code were written with AI coding assistants, then reviewed and tested.
 
-Code: MIT License. For the dataset sources and their terms, see the provenance document.
+Code: MIT License. The MIT License covers the code only, not the datasets. Dataset terms, as far as they could be verified:
+
+- **NHANES:** NCHS releases NHANES as public-use files "with some restrictions": statistical analysis and reporting only, no attempt to identify any person, and no linkage to identifiable data ([NCHS Data User Agreement](https://www.cdc.gov/nchs/policy/data-user-agreement.html)).
+- **Framingham extract:** taken from a Duke course repository ([sta210-sp20/datasets](https://github.com/sta210-sp20/datasets)) that has no licence file and states no terms. **Its redistribution terms are unclear.** The copy in `datasets/` is kept only for reproducibility; `make data` downloads it again from the source.
+- **Benchmark datasets** (UCI, Kaggle): their terms have not been checked here. See each host before reuse.
+
+Details are in [`docs/DATASET_PROVENANCE.md`](docs/DATASET_PROVENANCE.md#5-licences-and-redistribution).
