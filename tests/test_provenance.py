@@ -20,8 +20,8 @@ def test_nhanes_authentic_cohort_integrity():
     """Validates that authentic CDC NHANES cohort meets published size and clinical prevalence."""
     X, y = load_nhanes_cardiovascular()
 
-    # Must be the authentic CDC adult survey cohort (N >= 11,000)
-    assert len(X) >= 11000, f"Expected N >= 11,000, got {len(X)}"
+    # Examined adults (RIDSTATR == 2, age >= 20) from the 2015-2016 and 2017-2018 cycles
+    assert len(X) == 10739, f"Expected N = 10,739, got {len(X)}"
     assert len(y) == len(X)
 
     # Real-world physician-diagnosed composite CVD prevalence in U.S. adults is ~11-13%
@@ -63,3 +63,16 @@ def test_synthetic_demo_is_quarantined():
     df_demo = generate_synthetic_demo_cohort(n_samples=100, random_state=42)
     assert len(df_demo) == 100
     assert "CVD_Diagnosis" in df_demo.columns
+
+
+def test_nhanes_cleaning_rules_hold():
+    """The committed NHANES CSV obeys the cleaning rules in scripts/build_real_datasets.py."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "datasets", "nhanes_cardiovascular.csv")
+    df = pd.read_csv(path)
+
+    assert not df.duplicated().any(), "Exact duplicate rows found"
+    assert not (df["LDL_Cholesterol"] <= 0).any(), "Non-positive LDL found"
+    assert not (df["LDL_Cholesterol"].notna() & (df["Triglycerides"] > 400)).any(), \
+        "LDL present where TG > 400 mg/dL (Friedewald is invalid there)"
+    assert not (df["Systolic_BP"] < 1).any(), "Systolic BP of 0 mmHg found"
+    assert not (df["Diastolic_BP"] < 1).any(), "Diastolic BP of 0 mmHg found"

@@ -25,7 +25,7 @@ Data are programmatically fetched in official SAS transport format (`.XPT`) dire
 | **Body Measures (Anthropometrics)** | `BMX_I.xpt` / `BMX_J.xpt` | Body Mass Index (`BMXBMI`), Waist Circumference (`BMXWAIST`), Standing Height (`BMXHT`) |
 | **Lipid Profile (Total Cholesterol)** | `TCHOL_I.xpt` / `TCHOL_J.xpt` | Serum Total Cholesterol (`LBXTC`) |
 | **Lipid Profile (HDL Cholesterol)** | `HDL_I.xpt` / `HDL_J.xpt` | Serum High-Density Lipoprotein (`LBDHDD`) |
-| **Lipid Profile (Triglycerides & LDL)** | `TRIGLY_I.xpt` / `TRIGLY_J.xpt` | Serum Triglycerides (`LBXTR`), Low-Density Lipoprotein (`LBDLDL`, Friedewald fallback) |
+| **Lipid Profile (Triglycerides & LDL)** | `TRIGLY_I.xpt` / `TRIGLY_J.xpt` | Serum Triglycerides (`LBXTR`), Low-Density Lipoprotein (`LBDLDL`; Friedewald fallback only when TG ≤ 400 mg/dL) |
 | **Standard Biochemistry (Renal Panel)** | `BIOPRO_I.xpt` / `BIOPRO_J.xpt` | Serum Creatinine (`LBXSCR`), Blood Urea Nitrogen (`LBXSBU`) |
 | **Fasting Glycemia Panel** | `GLU_I.xpt` / `GLU_J.xpt` | Fasting Plasma Glucose (`LBXGLU`) |
 | **Glycated Hemoglobin** | `GHB_I.xpt` / `GHB_J.xpt` | Glycated Hemoglobin ($\text{HbA}_{1c}$, `LBXGH`) |
@@ -39,7 +39,18 @@ Data are programmatically fetched in official SAS transport format (`.XPT`) dire
   3. `MCQ160D`: Angina Pectoris
   4. `MCQ160E`: Heart Attack / Myocardial Infarction (MI)
   5. `MCQ160F`: Stroke
-* **Sample Size & Prevalence:** **$N = 11,288$ authentic adult participants**, with **$1,326$ confirmed CVD cases ($11.75\%$ prevalence)**.
+* **Sample Size & Prevalence:** **$N = 10,739$ examined adult participants**, with **$1,245$ self-reported CVD cases ($11.59\%$ prevalence)**.
+
+### 1.4 Cleaning Rules (applied in `scripts/build_real_datasets.py`)
+| Step | Rule | Rows |
+| :--- | :--- | :---: |
+| Adults | `RIDAGEYR >= 20` in either cycle (2017–18: 5,569; 2015–16: 5,719) | 11,288 |
+| Examined | keep `RIDSTATR == 2` (interviewed **and** examined; interview-only participants have no exam or lab values) (2017–18: 5,265; 2015–16: 5,474) | 10,739 |
+| Duplicates | drop exact duplicate rows | 10,739 (none left after the exam filter) |
+| Blood pressure | a reading below 1 mmHg (NHANES records 0 when the sound is not heard; pandas reads a SAS zero as 5.4e-79) is set to missing before the three readings are averaged | – |
+| LDL | `LBDLDL` as released by CDC; the Friedewald fallback is used only when TG ≤ 400 mg/dL; LDL is missing whenever TG > 400 mg/dL; any non-positive LDL is set to missing | – |
+
+The version committed before 2026-11-26 skipped these rules. It had 11,288 rows, 124 exact duplicate rows, 7 negative LDL values (minimum −199.8 mg/dL, from Friedewald applied at TG > 400), and 28 rows with a mean diastolic BP of 0.
 
 ---
 
@@ -66,7 +77,7 @@ Data are programmatically fetched in official SAS transport format (`.XPT`) dire
 | `CVD_Diagnosis` (Target) | `TenYearCHD` | 10-year risk of incident coronary heart disease event |
 
 ### 2.3 Methodological Note on Cross-Cohort Evaluation
-* **Endpoint Mismatch:** The NHANES primary model predicts cross-sectional self-reported composite cardiovascular disease (prevalence $11.75\%$), whereas the Framingham cohort evaluates prospective 10-year incident coronary heart disease (prevalence $15.19\%$).
+* **Endpoint Mismatch:** The NHANES primary model predicts cross-sectional self-reported composite cardiovascular disease (prevalence $11.59\%$), whereas the Framingham cohort evaluates prospective 10-year incident coronary heart disease (prevalence $15.19\%$).
 * **Biomarker Imputation:** Extended biomarkers present in NHANES but unmeasured in this Framingham release (e.g., eGFR, HbA1c, waist circumference) are passed as missing and imputed via the median imputer fitted strictly on the NHANES training partition, simulating prospective real-world deployment of an AI risk tool in a community clinic lacking advanced metabolic assays.
 
 ---

@@ -1,34 +1,34 @@
-Feature,Mean_Abs_SHAP
-Age,1.5356773
-Smoking_Never,0.4065616
-Total_Cholesterol,0.29439774
-Sex_Male,0.28725144
-Race_Non-Hispanic White,0.23585132
-Waist_Circumference,0.20588753
-Sex_Female,0.18194431
-eGFR,0.15789826
-BUN,0.13961883
-HbA1c,0.13890037
-Non_HDL_Cholesterol,0.12161294
-HDL_Cholesterol,0.120961785
-Standing_Height,0.119922765
-Race_Non-Hispanic Asian,0.11650753
-Smoking_Current,0.09972342
-Race_Mexican American,0.094263054
-Smoking_Former,0.09166145
-Serum_Creatinine,0.090363875
-Systolic_BP,0.077403665
-TyG_Index,0.0701729
-Race_Non-Hispanic Black,0.06935102
-Diastolic_BP,0.06885206
-BMI,0.06492345
-Pulse_Pressure,0.057264686
-LDL_Cholesterol,0.05402242
-Race_Other Hispanic,0.051975474
-Fasting_Glucose,0.045133606
-Race_Other Race,0.044105493
-Total_HDL_Ratio,0.03992476
-LDL_HDL_Ratio,0.039150238
-MAP,0.03861776
-Triglycerides,0.032054212
-AIP,0.030457506
+Model,Feature,Mean_Abs_SHAP
+Logistic Regression,Non_HDL_Cholesterol,1.4773568091125062
+Logistic Regression,Age,1.068759505614393
+Logistic Regression,Total_Cholesterol,0.8252210863842091
+Logistic Regression,HDL_Cholesterol,0.46071114388922413
+Logistic Regression,Smoking_Never,0.31021780593284587
+Logistic Regression,eGFR,0.26496436245944904
+Logistic Regression,Waist_Circumference,0.26205442277523827
+Logistic Regression,AIP,0.21206171276145105
+Logistic Regression,Total_HDL_Ratio,0.19346506520089954
+Logistic Regression,Smoking_Current,0.1343995177498726
+Logistic Regression,Race_Mexican American,0.12344894490378043
+Logistic Regression,Sex_Female,0.12297324426832247
+Logistic Regression,LDL_HDL_Ratio,0.12060600930157406
+Logistic Regression,Triglycerides,0.12031407186950142
+Logistic Regression,HbA1c,0.11160643886582944
+Logistic Regression,Standing_Height,0.10660310008628865
+Logistic Regression,Race_Non-Hispanic Asian,0.07113565696818491
+Logistic Regression,LDL_Cholesterol,0.06802278718371815
+Logistic Regression,Systolic_BP,0.06025210256458159
+Logistic Regression,Race_Non-Hispanic White,0.05122353583468273
+Logistic Regression,TyG_Index,0.045312614759993125
+Logistic Regression,Race_Other Race,0.038324853790432906
+Logistic Regression,BUN,0.03185767074898888
+Logistic Regression,Serum_Creatinine,0.026715743747080314
+Logistic Regression,Sex_Male,0.02362053056667398
+Logistic Regression,BMI,0.02125535100005284
+Logistic Regression,Fasting_Glucose,0.020019599782528295
+Logistic Regression,Diastolic_BP,0.017993683986978034
+Logistic Regression,MAP,0.012096676179174027
+Logistic Regression,Pulse_Pressure,0.009621075624251562
+Logistic Regression,Race_Other Hispanic,0.0052769726436279465
+Logistic Regression,Race_Non-Hispanic Black,0.002459921109058469
+Logistic Regression,Smoking_Former,0.00015920507185624534

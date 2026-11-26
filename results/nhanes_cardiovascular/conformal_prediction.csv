@@ -1,2 +1,2 @@
 Target_Coverage,Coverage_Guarantee_Type,Empirical_Coverage,Empirical_Coverage [95% CI],Conformal_Threshold,Mean_Set_Size,Singleton_Certainty_Rate,Ambiguity_Referral_Rate,Expected_Calibration_Error
-95.0%,Marginal Statistical Coverage under Exchangeability,94.33,"[93.36%, 95.26%]",0.8419,1.47,53.01,46.99,0.2075
+95.0%,Marginal Statistical Coverage under Exchangeability,93.85,"[92.83%, 94.83%]",0.8421,1.474,52.56,47.44,0.2082

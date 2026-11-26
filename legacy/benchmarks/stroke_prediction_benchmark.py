@@ -28,6 +28,7 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from xgboost import XGBClassifier
+from imblearn.over_sampling import SMOTE
 
 warnings.filterwarnings("ignore")
 
@@ -61,13 +62,21 @@ plt.rcParams.update({
 def load_and_preprocess(filepath: str):
     df = pd.read_csv(filepath)
 
-    cat_cols = ["Sex", "ChestPainType", "RestingECG", "ExerciseAngina", "ST_Slope"]
+    # Drop id column
+    df = df.drop(columns=["id"])
+
+    # Replace "N/A" string with NaN and fill bmi with median
+    df["bmi"] = pd.to_numeric(df["bmi"], errors="coerce")
+    df["bmi"] = df["bmi"].fillna(df["bmi"].median())
+
+    # Encode categorical columns
+    cat_cols = ["gender", "ever_married", "work_type", "Residence_type", "smoking_status"]
     le = LabelEncoder()
     for col in cat_cols:
         df[col] = le.fit_transform(df[col])
 
-    X = df.drop(columns=["HeartDisease"])
-    y = df["HeartDisease"]
+    X = df.drop(columns=["stroke"])
+    y = df["stroke"]
     return X, y
 
 
@@ -78,7 +87,8 @@ def build_models():
         "Random Forest":        RandomForestClassifier(n_estimators=200, random_state=42),
         "Gradient Boosting":    GradientBoostingClassifier(n_estimators=200, random_state=42),
         "XGBoost":              XGBClassifier(n_estimators=200, use_label_encoder=False,
-                                              eval_metric="logloss", random_state=42),
+                                              eval_metric="logloss", scale_pos_weight=19,
+                                              random_state=42),
         "SVM":                  SVC(probability=True, kernel="rbf", random_state=42),
         "KNN":                  KNeighborsClassifier(n_neighbors=7),
         "Naive Bayes":          GaussianNB(),
@@ -102,11 +112,15 @@ def evaluate_models(pipelines, X, y, test_size=0.2, random_state=42):
         X, y, test_size=test_size, stratify=y, random_state=random_state
     )
 
+    # Apply SMOTE only on training data to fix class imbalance
+    smote = SMOTE(random_state=random_state)
+    X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+
     results   = {}
     roc_data  = {}
 
     for name, pipe in pipelines.items():
-        pipe.fit(X_train, y_train)
+        pipe.fit(X_train_res, y_train_res)
         y_pred  = pipe.predict(X_test)
         y_proba = pipe.predict_proba(X_test)[:, 1]
 
@@ -115,13 +129,13 @@ def evaluate_models(pipelines, X, y, test_size=0.2, random_state=42):
 
         results[name] = {
             "Accuracy":  round(accuracy_score(y_test, y_pred)       * 100, 2),
-            "Precision": round(precision_score(y_test, y_pred)      * 100, 2),
-            "Recall":    round(recall_score(y_test, y_pred)         * 100, 2),
-            "F1-Score":  round(f1_score(y_test, y_pred)             * 100, 2),
+            "Precision": round(precision_score(y_test, y_pred, zero_division=0) * 100, 2),
+            "Recall":    round(recall_score(y_test, y_pred, zero_division=0)    * 100, 2),
+            "F1-Score":  round(f1_score(y_test, y_pred, zero_division=0)        * 100, 2),
             "ROC-AUC":   round(roc_auc_score(y_test, y_proba)       * 100, 2),
         }
 
-    results_df = pd.DataFrame(results).T.sort_values("Accuracy", ascending=False)
+    results_df = pd.DataFrame(results).T.sort_values("F1-Score", ascending=False)
     return results_df, roc_data
 
 
@@ -248,11 +262,7 @@ def plot_roc_curves(roc_data, palette, save_path=None):
 
 
 def print_summary_table(results_df):
-    best_overall = results_df["Accuracy"].idxmax()
-
-    def highlight(col):
-        best_val = col.max()
-        return ["" if v != best_val else "BEST" for v in col]
+    best_overall = results_df["F1-Score"].idxmax()
 
     print("\n" + "=" * 80)
     print(f"{'PERFORMANCE METRICS SUMMARY':^80}")
@@ -279,9 +289,9 @@ def main():
     # Detect dataset path automatically
     script_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        "heart_failure.csv",
-        os.path.join(script_dir, "..", "datasets", "heart_failure.csv"),
-        os.path.join(script_dir, "heart_failure.csv")
+        "stroke_prediction.csv",
+        os.path.join(script_dir, "..", "..", "datasets", "stroke_prediction.csv"),
+        os.path.join(script_dir, "stroke_prediction.csv")
     ]
     DATA_PATH = next((c for c in candidates if os.path.exists(c)), candidates[1])
 
@@ -291,7 +301,7 @@ def main():
 
     print_summary_table(results_df)
 
-    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "heart_failure")
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "stroke_prediction")
     os.makedirs(out_dir, exist_ok=True)
     plot_bar_chart(results_df, PALETTE, save_path=os.path.join(out_dir, "bar_chart.png"))
     plot_heatmap(results_df, save_path=os.path.join(out_dir, "heatmap.png"))

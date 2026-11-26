@@ -5,11 +5,11 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from math import pi
 import seaborn as sns
+from math import pi
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score,
@@ -56,37 +56,61 @@ plt.rcParams.update({
     "font.size":        10,
 })
 
+CAT_COLS = ["rbc", "pc", "pcc", "ba", "htn", "dm", "cad", "appet", "pe", "ane"]
+NUM_COLS = ["age", "bp", "sg", "al", "su", "bgr", "bu", "sc", "sod", "pot",
+            "hemo", "pcv", "wc", "rc"]
+
 
 def load_and_preprocess(filepath: str):
     df = pd.read_csv(filepath)
+    df.drop(columns=["id"], errors="ignore", inplace=True)
+    df.columns = df.columns.str.strip()
 
-    zero_cols = ["Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI"]
-    for col in zero_cols:
-        df[col] = df[col].replace(0, np.nan)
-        df[col] = df[col].fillna(df[col].median())
+    for col in df.columns:
+        df[col] = df[col].astype(str).str.strip()
+        df[col] = df[col].replace({"?": np.nan, "": np.nan, "nan": np.nan})
 
-    X = df.drop(columns=["Outcome"])
-    y = df["Outcome"]
-    return X, y
+    target = df["classification"].str.lower().str.strip().apply(
+        lambda x: 0 if "notckd" in str(x) else 1
+    )
+
+    present_num = [c for c in NUM_COLS if c in df.columns]
+    present_cat = [c for c in CAT_COLS if c in df.columns]
+
+    for col in present_num:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+        df[col].fillna(df[col].median(), inplace=True)
+
+    le = LabelEncoder()
+    for col in present_cat:
+        df[col] = df[col].astype(str).str.strip().str.lower()
+        mode_val = df[col].replace("nan", np.nan).dropna().mode()
+        if len(mode_val):
+            df[col] = df[col].replace("nan", mode_val[0])
+            df[col].fillna(mode_val[0], inplace=True)
+        df[col] = le.fit_transform(df[col])
+
+    X = df[present_num + present_cat].copy()
+    return X, target
 
 
 def build_models():
-    no_scale = {"Decision Tree", "Random Forest", "Gradient Boosting",
-                "XGBoost", "AdaBoost", "Bagging"}
-
     models = {
-        "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
+        "Logistic Regression": LogisticRegression(max_iter=2000, random_state=42),
         "Decision Tree":       DecisionTreeClassifier(random_state=42),
         "Random Forest":       RandomForestClassifier(n_estimators=200, random_state=42),
         "Gradient Boosting":   GradientBoostingClassifier(n_estimators=200, random_state=42),
         "XGBoost":             XGBClassifier(n_estimators=200, eval_metric="logloss",
                                              random_state=42, verbosity=0),
         "SVM":                 SVC(probability=True, kernel="rbf", random_state=42),
-        "KNN":                 KNeighborsClassifier(n_neighbors=7),
+        "KNN":                 KNeighborsClassifier(n_neighbors=5),
         "Naive Bayes":         GaussianNB(),
         "AdaBoost":            AdaBoostClassifier(n_estimators=200, random_state=42),
         "Bagging":             BaggingClassifier(n_estimators=200, random_state=42),
     }
+
+    no_scale = {"Decision Tree", "Random Forest", "Gradient Boosting",
+                "XGBoost", "AdaBoost", "Bagging"}
 
     pipelines = {}
     for name, model in models.items():
@@ -144,7 +168,7 @@ def plot_bar_chart(results_df, palette, save_path=None):
             fontsize=10, color=TEXT_COLOR, fontweight="bold"
         )
 
-    ax.set_xlim(0, 110)
+    ax.set_xlim(0, 115)
     ax.set_xlabel("Accuracy (%)", fontsize=11)
     ax.set_title("Accuracy Comparison Across Algorithms", fontsize=14,
                  fontweight="bold", pad=15, color=ACCENT_COLOR)
@@ -168,7 +192,7 @@ def plot_heatmap(results_df, save_path=None):
         annot=True, fmt=".1f", cmap=cmap,
         linewidths=0.5, linecolor=GRID_COLOR,
         ax=ax, cbar_kws={"shrink": 0.8},
-        vmin=40, vmax=100,
+        vmin=70, vmax=100,
     )
 
     ax.set_title("Performance Metrics Heatmap (%)", fontsize=14,
@@ -197,8 +221,7 @@ def plot_radar_chart(results_df, palette, save_path=None):
     for idx, (name, row) in enumerate(results_df.iterrows()):
         ax    = axes_flat[idx]
         color = palette[idx % len(palette)]
-        vals  = row.tolist()
-        vals += vals[:1]
+        vals  = row.tolist() + [row.tolist()[0]]
 
         ax.set_facecolor(BG_COLOR)
         ax.plot(angles, vals, color=color, linewidth=2)
@@ -272,19 +295,19 @@ def main():
     # Detect dataset path automatically
     script_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        "pima_diabetes.csv",
-        os.path.join(script_dir, "..", "datasets", "pima_diabetes.csv"),
-        os.path.join(script_dir, "pima_diabetes.csv")
+        "kidney_disease.csv",
+        os.path.join(script_dir, "..", "..", "datasets", "kidney_disease.csv"),
+        os.path.join(script_dir, "kidney_disease.csv")
     ]
     DATA_PATH = next((c for c in candidates if os.path.exists(c)), candidates[1])
 
-    X, y       = load_and_preprocess(DATA_PATH)
-    pipelines  = build_models()
+    X, y      = load_and_preprocess(DATA_PATH)
+    pipelines = build_models()
     results_df, roc_data = evaluate_models(pipelines, X, y)
 
     print_summary_table(results_df)
 
-    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "pima_diabetes")
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "chronic_kidney")
     os.makedirs(out_dir, exist_ok=True)
     plot_bar_chart(results_df, PALETTE, save_path=os.path.join(out_dir, "bar_chart.png"))
     plot_heatmap(results_df, save_path=os.path.join(out_dir, "heatmap.png"))

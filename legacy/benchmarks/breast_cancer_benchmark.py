@@ -56,52 +56,27 @@ plt.rcParams.update({
     "font.size":        10,
 })
 
-CAT_COLS = ["rbc", "pc", "pcc", "ba", "htn", "dm", "cad", "appet", "pe", "ane"]
-NUM_COLS = ["age", "bp", "sg", "al", "su", "bgr", "bu", "sc", "sod", "pot",
-            "hemo", "pcv", "wc", "rc"]
-
 
 def load_and_preprocess(filepath: str):
     df = pd.read_csv(filepath)
-    df.drop(columns=["id"], errors="ignore", inplace=True)
-    df.columns = df.columns.str.strip()
-
-    for col in df.columns:
-        df[col] = df[col].astype(str).str.strip()
-        df[col] = df[col].replace({"?": np.nan, "": np.nan, "nan": np.nan})
-
-    target = df["classification"].str.lower().str.strip().apply(
-        lambda x: 0 if "notckd" in str(x) else 1
-    )
-
-    present_num = [c for c in NUM_COLS if c in df.columns]
-    present_cat = [c for c in CAT_COLS if c in df.columns]
-
-    for col in present_num:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-        df[col].fillna(df[col].median(), inplace=True)
-
+    df.drop(columns=["id"], inplace=True, errors="ignore")
+    df.dropna(axis=1, how="all", inplace=True)
+    df.dropna(inplace=True)
     le = LabelEncoder()
-    for col in present_cat:
-        df[col] = df[col].astype(str).str.strip().str.lower()
-        mode_val = df[col].replace("nan", np.nan).dropna().mode()
-        if len(mode_val):
-            df[col] = df[col].replace("nan", mode_val[0])
-            df[col].fillna(mode_val[0], inplace=True)
-        df[col] = le.fit_transform(df[col])
-
-    X = df[present_num + present_cat].copy()
-    return X, target
+    df["diagnosis"] = le.fit_transform(df["diagnosis"])
+    X = df.drop(columns=["diagnosis"])
+    y = df["diagnosis"]
+    return X, y
 
 
 def build_models():
     models = {
-        "Logistic Regression": LogisticRegression(max_iter=2000, random_state=42),
+        "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
         "Decision Tree":       DecisionTreeClassifier(random_state=42),
         "Random Forest":       RandomForestClassifier(n_estimators=200, random_state=42),
         "Gradient Boosting":   GradientBoostingClassifier(n_estimators=200, random_state=42),
-        "XGBoost":             XGBClassifier(n_estimators=200, eval_metric="logloss",
-                                             random_state=42, verbosity=0),
+        "XGBoost":             XGBClassifier(n_estimators=200, use_label_encoder=False,
+                                             eval_metric="logloss", random_state=42),
         "SVM":                 SVC(probability=True, kernel="rbf", random_state=42),
         "KNN":                 KNeighborsClassifier(n_neighbors=5),
         "Naive Bayes":         GaussianNB(),
@@ -111,7 +86,6 @@ def build_models():
 
     no_scale = {"Decision Tree", "Random Forest", "Gradient Boosting",
                 "XGBoost", "AdaBoost", "Bagging"}
-
     pipelines = {}
     for name, model in models.items():
         if name in no_scale:
@@ -139,9 +113,9 @@ def evaluate_models(pipelines, X, y, test_size=0.2, random_state=42):
 
         results[name] = {
             "Accuracy":  round(accuracy_score(y_test, y_pred)  * 100, 2),
-            "Precision": round(precision_score(y_test, y_pred, zero_division=0) * 100, 2),
-            "Recall":    round(recall_score(y_test, y_pred, zero_division=0)    * 100, 2),
-            "F1-Score":  round(f1_score(y_test, y_pred, zero_division=0)        * 100, 2),
+            "Precision": round(precision_score(y_test, y_pred) * 100, 2),
+            "Recall":    round(recall_score(y_test, y_pred)    * 100, 2),
+            "F1-Score":  round(f1_score(y_test, y_pred)        * 100, 2),
             "ROC-AUC":   round(roc_auc_score(y_test, y_proba)  * 100, 2),
         }
 
@@ -168,7 +142,7 @@ def plot_bar_chart(results_df, palette, save_path=None):
             fontsize=10, color=TEXT_COLOR, fontweight="bold"
         )
 
-    ax.set_xlim(0, 115)
+    ax.set_xlim(0, 110)
     ax.set_xlabel("Accuracy (%)", fontsize=11)
     ax.set_title("Accuracy Comparison Across Algorithms", fontsize=14,
                  fontweight="bold", pad=15, color=ACCENT_COLOR)
@@ -220,14 +194,17 @@ def plot_radar_chart(results_df, palette, save_path=None):
     axes_flat = axes.flatten()
     for idx, (name, row) in enumerate(results_df.iterrows()):
         ax    = axes_flat[idx]
-        color = palette[idx % len(palette)]
-        vals  = row.tolist() + [row.tolist()[0]]
+        color = palette[idx]
+        vals  = row.tolist()
+        vals += vals[:1]
 
         ax.set_facecolor(BG_COLOR)
         ax.plot(angles, vals, color=color, linewidth=2)
         ax.fill(angles, vals, color=color, alpha=0.25)
-        ax.set_thetagrids([a * 180 / pi for a in angles[:-1]], metrics,
-                          fontsize=7, color=TEXT_COLOR)
+        ax.set_thetagrids(
+            [a * 180 / pi for a in angles[:-1]], metrics,
+            fontsize=7, color=TEXT_COLOR
+        )
         ax.set_ylim(0, 100)
         ax.set_yticks([20, 40, 60, 80, 100])
         ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=6, color=GRID_COLOR)
@@ -250,7 +227,7 @@ def plot_roc_curves(roc_data, palette, save_path=None):
 
     sorted_roc = sorted(roc_data.items(), key=lambda x: x[1][2], reverse=True)
     for i, (name, (fpr, tpr, auc_val)) in enumerate(sorted_roc):
-        ax.plot(fpr, tpr, color=palette[i % len(palette)], linewidth=2,
+        ax.plot(fpr, tpr, color=palette[i], linewidth=2,
                 label=f"{name}  (AUC = {auc_val:.3f})")
 
     ax.set_xlabel("False Positive Rate", fontsize=12)
@@ -276,18 +253,14 @@ def print_summary_table(results_df):
     header = f"{'Algorithm':<22}" + "".join(f"{m:>12}" for m in results_df.columns)
     print(header)
     print("-" * 80)
-
     for alg, row in results_df.iterrows():
         line = f"{str(alg):<22}" + "".join(f"{v:>11.2f}%" for v in row)
         print(line)
-
     print("=" * 80)
+
     print(f"\n  Best Overall Algorithm : {best_overall}")
-    print(f"  Accuracy               : {results_df.loc[best_overall, 'Accuracy']:.2f}%")
-    print(f"  Precision              : {results_df.loc[best_overall, 'Precision']:.2f}%")
-    print(f"  Recall                 : {results_df.loc[best_overall, 'Recall']:.2f}%")
-    print(f"  F1-Score               : {results_df.loc[best_overall, 'F1-Score']:.2f}%")
-    print(f"  ROC-AUC                : {results_df.loc[best_overall, 'ROC-AUC']:.2f}%")
+    for metric in results_df.columns:
+        print(f"  {metric:<12}: {results_df.loc[best_overall, metric]:.2f}%")
     print("=" * 80 + "\n")
 
 
@@ -295,19 +268,19 @@ def main():
     # Detect dataset path automatically
     script_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        "kidney_disease.csv",
-        os.path.join(script_dir, "..", "datasets", "kidney_disease.csv"),
-        os.path.join(script_dir, "kidney_disease.csv")
+        "breast_cancer.csv",
+        os.path.join(script_dir, "..", "..", "datasets", "breast_cancer.csv"),
+        os.path.join(script_dir, "breast_cancer.csv")
     ]
     DATA_PATH = next((c for c in candidates if os.path.exists(c)), candidates[1])
 
-    X, y      = load_and_preprocess(DATA_PATH)
+    X, y = load_and_preprocess(DATA_PATH)
     pipelines = build_models()
     results_df, roc_data = evaluate_models(pipelines, X, y)
 
     print_summary_table(results_df)
 
-    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "chronic_kidney")
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "breast_cancer")
     os.makedirs(out_dir, exist_ok=True)
     plot_bar_chart(results_df, PALETTE, save_path=os.path.join(out_dir, "bar_chart.png"))
     plot_heatmap(results_df, save_path=os.path.join(out_dir, "heatmap.png"))

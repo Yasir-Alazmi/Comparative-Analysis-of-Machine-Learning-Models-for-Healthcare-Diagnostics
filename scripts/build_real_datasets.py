@@ -3,7 +3,13 @@ Real-World Clinical Data Ingestion Script.
 Downloads and processes:
 1. Authentic CDC NHANES continuous survey cohorts (Cycles 2015-2016 and 2017-2018):
    - Merges demographics, blood pressure, anthropometrics, lipid panels, glycemic markers,
-     renal panel, smoking status, and physician-diagnosed cardiovascular condition outcomes (N > 11,000 adults).
+     renal panel, smoking status, and physician-diagnosed cardiovascular condition outcomes.
+   Cleaning rules (applied here, documented in docs/DATASET_PROVENANCE.md):
+   - keep adults (RIDAGEYR >= 20) who attended the examination (RIDSTATR == 2);
+   - a blood-pressure reading of 0 mmHg is treated as missing before the readings are averaged;
+   - LDL is CDC's LBDLDL; the Friedewald fallback is used only when TG <= 400 mg/dL,
+     and any non-positive LDL is set to missing;
+   - exact duplicate rows are dropped after the two cycles are combined.
 2. Authentic Framingham Heart Study longitudinal cohort (N = 4,240 real patients with 10-year CVD outcome).
 """
 
@@ -47,7 +53,11 @@ def extract_real_nhanes_cycle(cycle_year: int, suffix: str) -> pd.DataFrame:
         merged = merged.merge(d[cols_to_use], on='SEQN', how='left')
 
     # Adult participant filter (Age >= 20)
-    adults = merged[merged['RIDAGEYR'] >= 20].copy()
+    adults_all = merged[merged['RIDAGEYR'] >= 20]
+    # Keep only participants who were both interviewed and examined (RIDSTATR == 2).
+    # Interview-only participants (RIDSTATR == 1) have no exam or lab measurements.
+    adults = adults_all[adults_all['RIDSTATR'] == 2].copy()
+    print(f"    adults (age >= 20): {len(adults_all)} | examined (RIDSTATR == 2): {len(adults)}")
 
     age = adults['RIDAGEYR'].values
     sex = np.where(adults['RIAGENDR'] == 1.0, 'Male', 'Female')
@@ -73,8 +83,13 @@ def extract_real_nhanes_cycle(cycle_year: int, suffix: str) -> pd.DataFrame:
     # Blood Pressure readings (mean of 3 serial physician measurements)
     sbp_cols = [c for c in ['BPXSY1', 'BPXSY2', 'BPXSY3'] if c in adults.columns]
     dbp_cols = [c for c in ['BPXDI1', 'BPXDI2', 'BPXDI3'] if c in adults.columns]
-    sbp = adults[sbp_cols].mean(axis=1).values
-    dbp = adults[dbp_cols].mean(axis=1).values
+    # A reading of 0 mmHg is not physiological (NHANES records 0 when the diastolic
+    # sound could not be heard); treat it as missing before averaging. pandas reads a
+    # SAS transport zero as 5.4e-79, so the test is "< 1 mmHg", not "== 0".
+    sbp_readings = adults[sbp_cols].where(adults[sbp_cols] >= 1.0)
+    dbp_readings = adults[dbp_cols].where(adults[dbp_cols] >= 1.0)
+    sbp = sbp_readings.mean(axis=1).values
+    dbp = dbp_readings.mean(axis=1).values
 
     # Anthropometrics
     bmi = adults.get('BMXBMI', pd.Series(index=adults.index, dtype=float)).values
@@ -91,9 +106,13 @@ def extract_real_nhanes_cycle(cycle_year: int, suffix: str) -> pd.DataFrame:
     serum_creatinine = adults.get('LBXSCR', pd.Series(index=adults.index, dtype=float)).values
     bun = adults.get('LBXSBU', pd.Series(index=adults.index, dtype=float)).values
 
-    # Fallback for LDL if missing but Total, HDL, Trig are present (Friedewald equation)
-    friedewald_ldl = tot_chol - hdl_val - (trig_val / 5.0)
+    # Fallback for LDL if missing but Total, HDL, Trig are present (Friedewald equation).
+    # Friedewald is invalid when TG > 400 mg/dL, so those rows stay missing; a
+    # non-positive LDL is not physiological and is also set to missing.
+    friedewald_ldl = np.where(trig_val <= 400.0, tot_chol - hdl_val - (trig_val / 5.0), np.nan)
     ldl_combined = np.where(np.isnan(ldl_val), friedewald_ldl, ldl_val)
+    ldl_combined = np.where(trig_val > 400.0, np.nan, ldl_combined)
+    ldl_combined = np.where(ldl_combined > 0, ldl_combined, np.nan)
 
     # Cardiovascular Composite Endpoint (Ever diagnosed with CHF, CHD, Angina, Heart Attack, or Stroke)
     cvd_cols = [c for c in ['MCQ160B', 'MCQ160C', 'MCQ160D', 'MCQ160E', 'MCQ160F'] if c in adults.columns]
@@ -129,6 +148,15 @@ def build_real_nhanes_cohort():
     df_j = extract_real_nhanes_cycle(2017, "J")
     df_i = extract_real_nhanes_cycle(2015, "I")
     combined = pd.concat([df_j, df_i], ignore_index=True)
+    n_before = len(combined)
+    combined = combined.drop_duplicates(ignore_index=True)
+    print(f"[*] Examined adults, both cycles: {n_before} | after dropping exact duplicate rows: {len(combined)}")
+
+    # Post-conditions on the cleaned cohort
+    assert not combined.duplicated().any()
+    assert not (combined["LDL_Cholesterol"] <= 0).any()
+    assert not (combined["LDL_Cholesterol"].notna() & (combined["Triglycerides"] > 400)).any()
+    assert not (combined["Systolic_BP"] < 1).any() and not (combined["Diastolic_BP"] < 1).any()
 
     nhanes_path = os.path.join(DATA_DIR, "nhanes_cardiovascular.csv")
     combined.to_csv(nhanes_path, index=False)
@@ -168,5 +196,11 @@ def build_real_framingham_cohort():
 
 
 if __name__ == "__main__":
-    build_real_nhanes_cohort()
-    build_real_framingham_cohort()
+    import argparse
+    parser = argparse.ArgumentParser(description="Download and build the NHANES and Framingham CSVs")
+    parser.add_argument("--only", choices=["nhanes", "framingham"], help="Build only one dataset")
+    args = parser.parse_args()
+    if args.only in (None, "nhanes"):
+        build_real_nhanes_cohort()
+    if args.only in (None, "framingham"):
+        build_real_framingham_cohort()

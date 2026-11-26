@@ -33,7 +33,8 @@ def explain_clinical_model(
 ) -> Tuple[np.ndarray, pd.DataFrame]:
     """
     Computes SHAP values on transformed clinical features.
-    Supports TreeExplainer for tree ensembles and KernelExplainer/Sampling for generalized pipelines.
+    Uses LinearExplainer for linear models (log-odds), TreeExplainer for tree ensembles,
+    and KernelExplainer for other pipelines.
     """
     # Extract preprocessor and classifier from pipeline
     preprocessor = pipeline.named_steps.get("preprocessor")
@@ -63,21 +64,31 @@ def explain_clinical_model(
         X_eval = X_exp_trans
 
     # Compute SHAP
-    try:
-        explainer = shap.TreeExplainer(clf)
-        shap_vals = explainer.shap_values(X_eval)
-        # Binary classification handles: take positive class if list
-        if isinstance(shap_vals, list):
-            shap_vals = shap_vals[1]
-        elif len(shap_vals.shape) == 3:
+    is_linear = hasattr(clf, "coef_") and hasattr(clf, "intercept_")
+    if is_linear:
+        # Exact linear SHAP in log-odds units, with the training partition as background.
+        # The full training partition is the background (no random subsampling).
+        masker = shap.maskers.Independent(X_tr_trans, max_samples=len(X_tr_trans))
+        explainer = shap.LinearExplainer(clf, masker)
+        shap_vals = np.asarray(explainer.shap_values(X_eval))
+        if shap_vals.ndim == 3:
             shap_vals = shap_vals[:, :, 1]
-    except Exception:
-        # Fallback to general Kernel/Sampling explainer
-        background = shap.kmeans(X_tr_trans, 15) if len(X_tr_trans) > 50 else X_tr_trans
-        explainer = shap.KernelExplainer(clf.predict_proba, background)
-        shap_vals = explainer.shap_values(X_eval[:50], nsamples=100)
-        if isinstance(shap_vals, list):
-            shap_vals = shap_vals[1]
+    else:
+        try:
+            explainer = shap.TreeExplainer(clf)
+            shap_vals = explainer.shap_values(X_eval)
+            # Binary classification handles: take positive class if list
+            if isinstance(shap_vals, list):
+                shap_vals = shap_vals[1]
+            elif len(shap_vals.shape) == 3:
+                shap_vals = shap_vals[:, :, 1]
+        except Exception:
+            # Fallback to general Kernel/Sampling explainer
+            background = shap.kmeans(X_tr_trans, 15) if len(X_tr_trans) > 50 else X_tr_trans
+            explainer = shap.KernelExplainer(clf.predict_proba, background)
+            shap_vals = explainer.shap_values(X_eval[:50], nsamples=100)
+            if isinstance(shap_vals, list):
+                shap_vals = shap_vals[1]
 
     # Global feature importance summary
     mean_abs_shap = np.mean(np.abs(shap_vals), axis=0)
@@ -139,7 +150,7 @@ def render_shap_summary_plot(
         ax.text(w + 0.005, bar.get_y() + bar.get_height() / 2.0, f"{w:.3f}",
                 va="center", ha="left", fontsize=8, color="#1D3557", fontweight="bold")
 
-    ax.set_xlabel("Mean |SHAP value| (impact on model output, log-odds for tree models)", fontsize=11, fontweight="bold")
+    ax.set_xlabel("Mean |SHAP value| (impact on model output, log-odds)", fontsize=11, fontweight="bold")
     ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)

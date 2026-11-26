@@ -109,7 +109,7 @@ def generate_synthetic_demo_cohort(n_samples: int = 1000, random_state: int = 42
 
 def load_nhanes_cardiovascular(data_path: str = None) -> Tuple[pd.DataFrame, pd.Series]:
     """
-    Loads authentic CDC NHANES Continuous Survey Cardiovascular Cohort (Cycles 2015-2018, N=11,288 adult participants).
+    Loads authentic CDC NHANES Continuous Survey Cardiovascular Cohort (Cycles 2015-2018, N=10,739 examined adult participants).
     Strictly loads authentic CDC survey data. Raises FileNotFoundError if missing to prevent silent synthetic fallbacks.
     """
     default_nhanes = os.path.join(DEFAULT_DATA_DIR, "nhanes_cardiovascular.csv")

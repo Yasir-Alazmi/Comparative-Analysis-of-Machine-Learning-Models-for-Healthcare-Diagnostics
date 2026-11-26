@@ -221,8 +221,9 @@ def run_benchmark_dataset(
 
     # 7. Explainable AI & Pathophysiological Plausibility Audit
     if run_shap:
-        print("\n[*] [7/7] Computing TreeSHAP Attributions & Pathophysiological Plausibility Audit against AHA/ACC Criteria...")
-        shap_candidate = "XGBoost" if "XGBoost" in pipelines else best_model_name
+        # SHAP is computed for the top-ranked model, the one reported everywhere else.
+        shap_candidate = best_model_name
+        print(f"\n[*] [7/7] Computing SHAP Attributions for {shap_candidate} & Plausibility Audit against AHA/ACC Criteria...")
         shap_pipe = pipelines[shap_candidate]
         shap_pipe.fit(X_tr_hold, y_tr_hold)
         shap_vals, importance_df = explain_clinical_model(shap_pipe, X_tr_hold, X_te_hold, max_eval_samples=150)
@@ -233,10 +234,12 @@ def run_benchmark_dataset(
         print(f"[+] AHA/ACC Guideline Alignment Rate: {guideline_audit['Guideline_Alignment_Rate']}")
         print(f"[+] Clinical Plausibility Audit: {guideline_audit['Clinical_Plausibility_Verdict']}")
         print("-" * 95)
+        importance_df.insert(0, "Model", shap_candidate)
         importance_df.to_csv(os.path.join(out_dir, "shap_feature_importance.csv"), index=False)
 
         if not no_plot:
-            render_shap_summary_plot(shap_vals, importance_df, os.path.join(out_dir, "figure3_shap_biomarkers.png"))
+            render_shap_summary_plot(shap_vals, importance_df, os.path.join(out_dir, "figure3_shap_biomarkers.png"),
+                                     title=f"Clinical Feature Importance (SHAP, {shap_candidate})")
 
     # Demographic Subgroup Fairness Audit (Sex & Age)
     if "Sex" in X.columns and "Age" in X.columns:
